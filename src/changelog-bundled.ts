@@ -5,6 +5,10 @@
 export const BUNDLED_RELEASE_BODY: string = [
   "Signed and notarized update for macOS (Apple Silicon), and signed update for Windows (x64). Ubuntu 24.04 (amd64) is included only when its installer is listed in this release.",
   "",
+  "What's new in 0.2.248:",
+  "- 手机 Hub 页把管理入口放到标题下方，Provider 不再被长机器列表埋在页面底部。",
+  "- 点击 Hub Provider 打开已有管理页，可返回 Hub；仅调整入口位置，不会自动保存、下发或切换节点配置。",
+  "",
   "What's new in 0.2.247:",
   "- Hub Provider 下发前展示 Provider、配置版本、模型列表和所选 Daemon 的名称与标识，方便确认目标。",
   "- 可返回修改选择；取消确认或变更目标不会下发配置。下发仍需明确确认，不会自动切换或重启已有节点。",

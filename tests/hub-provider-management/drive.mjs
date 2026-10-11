@@ -7,8 +7,12 @@ const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
 const web = await serveExport(process.env.WEB_DIR);
 const browser = await chromium.launch({ headless: true, executablePath: findChromium() });
 let passed = 0;
+const entryOnly = process.env.ENTRY_ONLY === '1';
+const cases = entryOnly
+  ? [['light', { width: 390, height: 844 }], ['dark', { width: 390, height: 844 }]]
+  : [['light', { width: 1200, height: 900 }], ['dark', { width: 390, height: 844 }]];
 try {
-  for (const [theme, viewport] of [['light', { width: 1200, height: 900 }], ['dark', { width: 390, height: 844 }]]) {
+  for (const [theme, viewport] of cases) {
     const ctx = await browser.newContext({ locale: TEST_LOCALE, viewport, colorScheme: theme }); const page = await ctx.newPage();
     const errors = []; page.on('pageerror', e => errors.push(String(e)));
     await page.addInitScript({ content: `(${initScript.toString().replace('http://mock-hub.invalid', 'http://127.0.0.1:9200')})({theme:${JSON.stringify(theme)}});` });
@@ -24,6 +28,12 @@ try {
         return { ok: true, request_id: id, daemon_node_id: daemonId, status: 'pending' };
       };
       window.__routeOverride = (url, text) => {
+        if (url.pathname === '/api/status' && window.innerWidth === 390) return { ok: true, sessions: Array.from({ length: 12 }, (_, i) => ({
+          alias: i === 0 ? '示例-A' : `示例机器-${i}`, node_id: `n_phone_${i}`, hostname: `phone-host-${i}`,
+          status: 'idle', agent: 'claude-code', updated_at: new Date().toISOString(),
+          cpu_load_1min: 2, cpu_cores: 4, mem_total_gb: 16, mem_used_gb: 8, mem_avail_gb: 8,
+          disk_total_gb: 100, disk_used_gb: 50, disk_avail_gb: 50,
+        })) };
         if (url.pathname !== '/mcp') return;
         const { name, arguments: a } = JSON.parse(text || '{}').params || {};
         if (name === 'list_network_secrets') return envelope({ ok: true, keys: ['SHARED_API_KEY'] });
@@ -59,6 +69,26 @@ try {
     await page.goto(`${web.url}?safeAreaSim=0,0,0,0`);
     await page.waitForFunction(() => !!window.__anetLayoutSweep);
     await page.getByText('示例-A', { exact: true }).first().waitFor();
+    if (viewport.width === 390) {
+      await page.evaluate(() => window.__anetLayoutSweep.setScreen({ name: 'server' }));
+      const entry = page.getByTestId('server-action-providers');
+      await entry.waitFor();
+      const box = await entry.boundingBox();
+      assert(box && box.y >= 0 && box.y + box.height <= viewport.height,
+        `Provider entry must be in the first viewport, without scrolling: ${JSON.stringify(box)}`); passed++;
+      assert.equal(await page.getByTestId('server-one-column').count(), 1); passed++;
+      mkdirSync('/tmp/hub-provider-screenshots', { recursive: true });
+      await page.screenshot({ path: `/tmp/hub-provider-screenshots/phone-entry-${theme}.png` });
+      // Real viewport tap: locator.click() would auto-scroll and hide this regression.
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+      await page.getByTestId('hub-providers-real').waitFor(); passed++;
+      assert.equal(await page.evaluate(() => window.__hubWrites.length), 0); passed++;
+      assert.equal(await page.evaluate(() => window.__hubBindings.length), 0); passed++;
+      await page.getByRole('button', { name: '返回', exact: true }).click();
+      await page.getByTestId('server-header').waitFor(); passed++;
+      assert.deepEqual(await page.evaluate(() => [window.__hubWrites.length, window.__hubBindings.length]), [0, 0]); passed++;
+      if (entryOnly) { assert.deepEqual(errors, []); passed++; await ctx.close(); continue; }
+    }
     await page.evaluate(() => window.__anetLayoutSweep.setScreen({ name: 'serverPending', tab: 'provider' }));
     await page.getByTestId('hub-providers-real').waitFor({ timeout: 8000 }).catch(async error => {
       console.log('Synthetic page diagnostic', JSON.stringify({ errors, body: (await page.locator('body').innerText()).slice(0, 1200) }));
@@ -120,5 +150,7 @@ try {
     await page.screenshot({ path: `/tmp/hub-provider-screenshots/${theme}.png`, fullPage: true });
     await ctx.close();
   }
-  console.log(`PASS Hub Provider real page: ${passed}/39 assertions, desktop/light + phone/dark (palette asserted)`);
+  console.log(entryOnly
+    ? `PASS phone Provider entry: ${passed}/16 assertions, light + dark, visible/tap/back/zero writes`
+    : `PASS Hub Provider real page: ${passed}/46 assertions, desktop/light + phone/dark (entry + palette asserted)`);
 } finally { await browser.close(); web.close(); }
