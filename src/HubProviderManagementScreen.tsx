@@ -39,6 +39,7 @@ function HubProviderPage({ cfg, onBack }: { cfg: HubConfig; onBack?: () => void 
   const live = useRef(true);
   const secure = providerWriteTransportAllowed(cfg.serverUrl);
   const provider = rows?.find(p => p.id === chosen);
+  const selectedDaemons = daemons?.filter(d => targets.includes(d.daemon_node_id)) ?? [];
   const canBind = !!provider?.enabled && provider.credential_present && provider.protocol === 'openai-responses' && secure;
   const load = async () => {
     if (locked.current) return;
@@ -140,6 +141,16 @@ function HubProviderPage({ cfg, onBack }: { cfg: HubConfig; onBack?: () => void 
             {receipts[d.daemon_node_id] !== undefined && <Text testID={`hub-provider-receipt-${d.daemon_node_id}`} style={{ color: receipts[d.daemon_node_id] ? colors.textSecondary : colors.failed }}>{t(receipts[d.daemon_node_id] ? 'hubProvider.synced' : 'hubProvider.notSynced')}</Text>}
           </View>)}
           <Text style={{ color: colors.textSecondary }}>{t('hubProvider.confirmHint')}</Text>
+          {confirm && provider && <View testID="hub-provider-distribution-review"
+            style={{ padding: spacing.md, gap: spacing.sm, borderRadius: radius.md, backgroundColor: colors.inputBg }}>
+            <Text style={{ color: colors.text, fontWeight: '600' }}>{t('hubProvider.reviewTitle')}</Text>
+            <Text style={{ color: colors.text }}>{provider.label} · {provider.id}</Text>
+            <Text style={{ color: colors.textSecondary }}>{t('hubProvider.reviewRevision', { revision: provider.revision })} · {provider.protocol}</Text>
+            <Text style={{ color: colors.textSecondary }}>{t('hubProvider.reviewModels', { models: provider.models.join(', ') })}</Text>
+            <Text style={{ color: colors.textSecondary }}>{t('hubProvider.reviewTargets', { count: selectedDaemons.length })}</Text>
+            {selectedDaemons.map(d => <Text key={d.daemon_node_id} style={{ color: colors.text }}>{d.alias} · {d.daemon_node_id}</Text>)}
+            {button('hubProvider.cancelReview', () => setConfirm(false), busy, false, 'hub-provider-cancel-distribution')}
+          </View>}
           {!confirm ? button('hubProvider.distribute', () => setConfirm(true), busy || !canBind || !targets.length, false, 'hub-provider-review-distribution')
             : button('hubProvider.confirm', () => void distribute(), busy || !canBind || !targets.length, true, 'hub-provider-confirm-distribution')}
         </View>
