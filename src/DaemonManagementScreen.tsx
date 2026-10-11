@@ -62,6 +62,7 @@ import { PANE_BACK_TEST_ID } from './pane-header';
 import { pointerUi } from './pointer-ui';
 import DialogFrame from './DialogFrame';
 import { SettingsGroup, SettingsRow } from './settings-kit';
+import { canOpenDaemonSettingsWindow, openDaemonSettingsWindow } from './daemon-settings-window';
 
 const CONFIRM_TITLE: Record<NodeActionId, string> = {
   start: 'daemon.mgmt.confirmStart',
@@ -135,6 +136,7 @@ export default function DaemonManagementScreen({
   const [confirmAlias, setConfirmAlias] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [openingWindow, setOpeningWindow] = useState(false);
   const [section, setSectionRaw] = useState<DaemonSection>(initialSection);
   // Phone only: start on the menu unless the caller deep-linked a section.
   const [menuOpen, setMenuOpen] = useState(initialSection === 'overview');
@@ -218,6 +220,18 @@ export default function DaemonManagementScreen({
         <Text style={{ color: colors.text, fontSize: type.title, fontWeight: weight.strong }} numberOfLines={1}>{alias}</Text>
         <Text style={{ color: colors.textSecondary, fontSize: type.small }} numberOfLines={1}>{subtitle}</Text>
       </View>
+      {desktop && cfg.profileId && cfg.networkId && canOpenDaemonSettingsWindow() ? <Pressable
+        testID="daemon-mgmt-popout" accessibilityRole="button" accessibilityLabel={t('daemon.window.open')}
+        disabled={openingWindow} hitSlop={6}
+        onPress={async () => {
+          setOpeningWindow(true);
+          const opened = await openDaemonSettingsWindow({ profileId: cfg.profileId!, networkId: cfg.networkId!, alias });
+          setOpeningWindow(false);
+          if (!opened) setMessage(t('daemon.window.failed'));
+        }}
+        style={{ padding: spacing.sm, opacity: openingWindow ? 0.5 : 1 }}>
+        <Ionicons name="open-outline" size={18} color={colors.accent} />
+      </Pressable> : null}
       <Pressable
         testID="daemon-mgmt-node-settings"
         accessibilityRole="link"

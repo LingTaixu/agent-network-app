@@ -2,6 +2,9 @@ import { registerTranslations } from './i18n';
 
 /** Board #908 — daemon management page. UI copy only. */
 export const daemonTranslations = {
+  'daemon.window.open': ['在独立窗口打开 Daemon 设置', 'Open daemon settings in a separate window'],
+  'daemon.window.failed': ['未能打开独立窗口，可继续在当前页面操作。', 'Could not open a separate window. Continue on this page.'],
+  'daemon.window.accountMissing': ['此窗口的 Hub 账号不可用，请回主窗口重新登录后再打开。', 'This window’s Hub account is unavailable. Sign in from the main window and reopen it.'],
   'daemon.integrations': ['Daemon 域集成', 'Daemon integrations'],
   'daemon.entry.choose': ['选择一台守护进程，打开它的管理页。', 'Choose a daemon to open its management page.'],
   'daemon.entry.missing': ['当前 Hub 还没有上报守护进程。', 'This Hub has not reported a daemon.'],

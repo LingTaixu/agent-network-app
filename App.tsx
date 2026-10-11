@@ -88,6 +88,8 @@ import ImageViewerWindow from './src/ImageViewerWindow';
 import { readImageWindowRoute } from './src/image-window-model';
 import TaskWindow from './src/TaskWindow';
 import { readTaskWindowRoute } from './src/task-window-model';
+import { readDaemonSettingsWindow } from './src/daemon-settings-window';
+import DaemonSettingsWindow from './src/DaemonSettingsWindow';
 import { loadPinnedChats, requestedChatAlias, requestedChatProfileId, requestedWorkspaceProfileId, savePinnedChats } from './src/desktop-chat-menu';
 import { SETTINGS_CATEGORY_EVENT, SETTINGS_SESSION_EVENT, closeSettingsWindow, followThemeInSettingsTitleBar, notifySessionChanged, openSettingsWindow, requestedSettingsCategory, requestedSettingsDetail, requestedSettingsWindow, settingsCategoryFromQuery } from './src/desktop-settings-window';
 import { loadChatPins, saveChatPins, togglePinned } from './src/chat-pins';
@@ -199,7 +201,7 @@ export default function App() {
   // 0.2.101「跟随系统」:先同步读系统配色并订阅它的变化(幂等,每个窗口的 JS 上下文装一次),
   // 再同步读用户偏好。存储里没有值(新装)= 跟随系统;旧版存的 light/dark 原样沿用。
   // undefined = 不是桌面壳(移动端),偏好等下面异步的 loadThemeMode() 再定。
-  installSystemThemeFollower({ subscribe: !(requestedSettingsWindow() && isWindowsTauriShell()) });
+  installSystemThemeFollower({ subscribe: !((requestedSettingsWindow() || readDaemonSettingsWindow()) && isWindowsTauriShell()) });
   {
     const early = loadDesktopThemeMode();
     if (early !== undefined) setThemePreference(parseStoredThemePreference(early));
@@ -245,6 +247,10 @@ export default function App() {
         <TaskWindow />
       </SafeAreaProvider>
     );
+  }
+
+  if (Platform.OS === 'web' && !!(globalThis as any).__TAURI_INTERNALS__ && readDaemonSettingsWindow()) {
+    return <SafeAreaProvider><DaemonSettingsWindow /></SafeAreaProvider>;
   }
 
   if (readFatalFixture()) {
