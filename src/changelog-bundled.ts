@@ -5,6 +5,10 @@
 export const BUNDLED_RELEASE_BODY: string = [
   "Signed and notarized update for macOS (Apple Silicon), and signed update for Windows (x64). Ubuntu 24.04 (amd64) is included only when its installer is listed in this release.",
   "",
+  "What's new in 0.2.247:",
+  "- Hub Provider 下发前展示 Provider、配置版本、模型列表和所选 Daemon 的名称与标识，方便确认目标。",
+  "- 可返回修改选择；取消确认或变更目标不会下发配置。下发仍需明确确认，不会自动切换或重启已有节点。",
+  "",
   "What's new in 0.2.246:",
   "- 节点和 Daemon 的 Provider 页面在确认应用成功后自动刷新当前配置，无需手动刷新才能继续选择。",
   "- 连续切换 Provider 或模型时使用最新回读配置；每次切换仍需明确确认，未确认生效的结果不会自动重试。",
