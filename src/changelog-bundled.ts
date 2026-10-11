@@ -5,6 +5,10 @@
 export const BUNDLED_RELEASE_BODY: string = [
   "Signed and notarized update for macOS (Apple Silicon), and signed update for Windows (x64). Ubuntu 24.04 (amd64) is included only when its installer is listed in this release.",
   "",
+  "What's new in 0.2.244:",
+  "- Windows 安装器和卸载界面使用 ANet Logo，安装页头与侧栏统一品牌展示，不再显示默认安装图标。",
+  "- 保留原安装目录、升级识别与账号数据；Provider 配置和已有节点不会因本次外观更新自动切换。",
+  "",
   "What's new in 0.2.243:",
   "- Hub Provider 可选择已保存在 Hub 密钥库中的 API 密钥名称，无需再次输入或读取密钥明文；也可输入新的 API 密钥。",
   "- 配置回读显示引用名称；下发到所选 Daemon 和应用到节点仍需明确确认，不会自动切换已有节点或覆盖共享密钥。",
@@ -1078,6 +1082,7 @@ export const BUNDLED_RELEASE_BODY: string = [
 
 /** Release date (published_at) per version, as far as it was known when this file was generated. */
 export const BUNDLED_RELEASE_DATES: Record<string, string> = {
+  "0.2.243": "2026-10-11T16:20:51Z",
   "0.2.242": "2026-10-11T15:30:17Z",
   "0.2.241": "2026-10-11T14:35:01Z",
   "0.2.240": "2026-10-11T11:30:52Z",
