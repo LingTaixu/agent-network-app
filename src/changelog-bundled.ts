@@ -5,6 +5,11 @@
 export const BUNDLED_RELEASE_BODY: string = [
   "Signed and notarized update for macOS (Apple Silicon), and signed update for Windows (x64). Ubuntu 24.04 (amd64) is included only when its installer is listed in this release.",
   "",
+  "What's new in 0.2.245:",
+  "- macOS / Windows 的 Daemon 管理可打开独立窗口，调整窗口大小，同时保留主窗口对话；重复打开同一个 Daemon 会回到已有窗口。",
+  "- 独立窗口沿用所选 Hub、网络和 Daemon，Provider、已有 Codex、托管节点与日志在同一处管理；关闭窗口不会停止 Daemon 或切换账号。",
+  "- Android 和网页继续使用原有页面，不新增独立窗口，也不会自动更换节点的 Provider、账号或模型。",
+  "",
   "What's new in 0.2.244:",
   "- Windows 安装器和卸载界面使用 ANet Logo，安装页头与侧栏统一品牌展示，不再显示默认安装图标。",
   "- 保留原安装目录、升级识别与账号数据；Provider 配置和已有节点不会因本次外观更新自动切换。",
@@ -1082,6 +1087,7 @@ export const BUNDLED_RELEASE_BODY: string = [
 
 /** Release date (published_at) per version, as far as it was known when this file was generated. */
 export const BUNDLED_RELEASE_DATES: Record<string, string> = {
+  "0.2.244": "2026-10-11T17:54:52Z",
   "0.2.243": "2026-10-11T16:20:51Z",
   "0.2.242": "2026-10-11T15:30:17Z",
   "0.2.241": "2026-10-11T14:35:01Z",
