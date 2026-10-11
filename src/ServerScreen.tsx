@@ -37,7 +37,8 @@ import './i18n-hub-provider-management';
 //   3. 连接本身(地址、hub 版本、网络 id、实测延迟、已连接多久;断开时给原因和重试);
 //   4. 常用入口(节点管理 / 新建节点 / 定时任务 / 事件与日志),复用已有的屏。
 //   5. 「机器」(#618):节点所在每台机器的 CPU / 内存 / 磁盘水位(host-levels.ts 定规则,点一台进该机器的守护进程管理页;没有 daemon 时退回节点列表筛到它)。
-// 宽屏(≥ WIDE_MIN)分两栏:左 = 概况 + 机器 + 分组,右 = 连接 + 操作;窄屏单栏(概况之后紧跟机器)。
+// 宽屏(≥ WIDE_MIN)分两栏:左 = 概况 + 机器 + 分组,右 = 连接 + 操作。
+// 窄屏先放管理入口,避免机器列表把 Provider 等操作埋到页面底部。
 // 机器放主栏:三根条要横向长度才读得出差别,右栏 ~440px 放三列条每列不到 100px。
 
 /** 两栏的最小内容宽度(dp)。按本屏自身宽度判断,不按窗口 —— 桌面端它旁边还有侧栏。 */
@@ -482,10 +483,10 @@ export default function ServerScreen({
         </View>
       ) : (
         <View testID="server-one-column">
+          {actionPanel}
           {overview}
           {hostPanel}
           {connection}
-          {actionPanel}
           {switcher}
           {groupPanel}
         </View>
