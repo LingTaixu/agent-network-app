@@ -14,6 +14,7 @@ try {
     await page.addInitScript(() => {
       window.__providerMode = 'ready'; window.__providerCalls = []; window.__savedProviders = {}; window.__providerRevision = 3;
       window.__providerApplyEnabled = false; window.__applicationIntent = null;
+      window.__appliedIntent = null; window.__wrongApplicationReceipt = false;
       window.__nodeBinding = 'daemon-a';
       const daemon = { node_id: 'daemon-a', alias: 'daemon-a', role: 'host_supervisor', lifecycle_state: 'running', config_snapshot: { role: 'host_supervisor' } };
       const requestId = 'dps_00000000-0000-0000-0000-000000000001';
@@ -34,9 +35,10 @@ try {
         }
         if (params.arguments.action === 'read' && params.arguments.id === applicationId) {
           const intent = window.__applicationIntent;
+          if (!window.__wrongApplicationReceipt) window.__appliedIntent = intent;
           return envelope({ ok: true, request_id: applicationId, daemon_node_id: 'daemon-a', status: 'succeeded', application: {
             status: 'applied', request_id: applicationId, node_id: intent.provider.node_id, provider_id: intent.provider.provider_id,
-            auth_id: intent.provider.auth_id, model: intent.provider.model, runtime_provider: 'anet_' + 'b'.repeat(20),
+            auth_id: intent.provider.auth_id, model: window.__wrongApplicationReceipt ? 'wrong-model' : intent.provider.model, runtime_provider: 'anet_' + 'b'.repeat(20),
             node_revision: 'c'.repeat(64), provider_revision: intent.revision, verification: 'runtime_confirmed', applied_at: Date.now(),
           } });
         }
@@ -60,16 +62,17 @@ try {
         if (params.arguments.action === 'refresh') return envelope({ ok: true, request_id: requestId, status: 'pending' });
         const value = { network_id: 'net-sweep', daemon_node_id: window.__providerMode === 'foreign' ? 'daemon-b' : 'daemon-a', source: 'daemon', revision: 3, providers: [
           { id: 'deepseek', label: 'DeepSeek', enabled: true, runtimes: [{ runtime: 'codex-tui', auth: [
-            { id: 'work', kind: 'api_key', models: ['deepseek-chat'], baseUrl: 'https://api.example.test/v1', credential_present: true, verification: 'not_checked', application: 'not_applied' },
+            { id: 'work', kind: 'api_key', models: ['deepseek-chat', 'deepseek-reasoner'], baseUrl: 'https://api.example.test/v1', credential_present: true, verification: 'not_checked', application: 'not_applied' },
           ] }] },
           { id: 'openai', label: 'OpenAI', enabled: false, runtimes: [{ runtime: 'codex-tui', auth: [
             { id: 'personal', kind: 'chatgpt', models: ['model-fixture'], credential_present: false, verification: 'not_checked', application: 'not_applied' },
           ] }] },
         ], codex_inventory: { observed_at: Date.now(), scope: 'hub_bound_nodes', installation: { status: 'found', version: '0.133.0' }, rows: [{
           node_id: 'n_existing', alias: 'existing-codex', status: 'observed', runtime: 'codex-app-server', home_ref: '1234567890abcdef', home_source: 'node-codex-home',
-          config_status: 'read', configured_provider: 'configured-custom', configured_model: 'existing-model', node_configured_model: 'node-model', provider_ids: ['configured-custom'],
+          config_status: 'read', configured_provider: window.__appliedIntent ? 'anet_' + 'b'.repeat(20) : 'configured-custom',
+          configured_model: window.__appliedIntent?.provider.model ?? 'existing-model', node_configured_model: window.__appliedIntent?.provider.model ?? 'node-model', provider_ids: ['configured-custom'],
           auth_kind: 'api_key', credential_status: 'unknown', account_fingerprint: null, verification: 'not_checked', effective_state: 'not_checked',
-          ...(window.__providerApplyEnabled ? { config_revision: 'a'.repeat(64) } : {}),
+          ...(window.__providerApplyEnabled ? { config_revision: (window.__appliedIntent ? 'c' : 'a').repeat(64) } : {}),
         }], local_discovery: { status: 'observed', rows: [{
           node_id: 'n_manual', alias: 'manual-codex', status: 'observed', runtime: 'codex-app-server', home_ref: '2234567890abcdef', home_source: 'node-codex-home',
           config_status: 'read', configured_provider: 'openai', configured_model: 'manual-model', node_configured_model: 'manual-model', provider_ids: ['openai'],
@@ -90,24 +93,48 @@ try {
     });
     await page.goto(`${web.url}?safeAreaSim=0,0,0,0`);
     await page.waitForFunction(() => !!window.__anetLayoutSweep);
+    const chooseProfile = async (model, includeNode = false) => {
+      for (const [field, id] of Object.entries({ ...(includeNode ? { nodeId: 'n_existing' } : {}), providerId: 'deepseek', authId: 'work', model })) {
+        const control = `daemon-provider-select-${field}`;
+        await page.getByTestId(control).click();
+        await page.getByTestId(`${control}-menu-opt-${id}`).click();
+      }
+    };
+    const applyAndObserve = async (model, includeNode = false) => {
+      await chooseProfile(model, includeNode);
+      const writes = await page.evaluate(() => window.__providerCalls.filter(c => c.arguments.action === 'apply').length);
+      await page.getByTestId('daemon-provider-apply').click();
+      assert.equal(await page.evaluate(() => window.__providerCalls.filter(c => c.arguments.action === 'apply').length), writes); passed++;
+      await page.getByTestId('daemon-provider-apply-confirm').click();
+      await page.waitForFunction(({ model, daemon }) => {
+        const panel = document.querySelector(`[data-testid="${daemon ? 'daemon-codex-row-n_existing' : 'node-daemon-provider'}"]`);
+        return panel?.textContent?.includes('anet_' + 'b'.repeat(20)) && panel.textContent.includes(model);
+      }, { model, daemon: includeNode });
+      await page.getByTestId('daemon-provider-select-providerId').waitFor();
+      assert.equal(await page.evaluate(() => window.__providerCalls.filter(c => c.arguments.action === 'apply').length), writes + 1); passed++;
+    };
     if (process.env.CORE_NODE_SWITCH === '1') {
       await page.evaluate(() => { window.__providerApplyEnabled = true; window.__anetLayoutSweep.setScreen({ name: 'nodeInfo', alias: 'existing-codex' }); });
       await page.getByTestId('node-section-nav').getByText('模型与运行时', { exact: true }).click();
       await page.getByTestId('daemon-provider-select-providerId').waitFor();
       assert.equal(await page.getByTestId('daemon-provider-select-nodeId').count(), 0); passed++;
-      for (const [field, id] of Object.entries({ providerId: 'deepseek', authId: 'work', model: 'deepseek-chat' })) {
-        const control = `daemon-provider-select-${field}`;
-        await page.getByTestId(control).click();
-        await page.getByTestId(`${control}-menu-opt-${id}`).click();
-      }
-      await page.getByTestId('daemon-provider-apply').click();
-      assert.equal(await page.evaluate(() => window.__providerCalls.filter(c => c.arguments.action === 'apply').length), 0); passed++;
-      await page.getByTestId('daemon-provider-apply-confirm').click();
-      await page.waitForFunction(() => document.querySelector('[data-testid="daemon-provider-application-status"]')?.textContent?.includes('已确认所选'));
+      await applyAndObserve('deepseek-chat');
       const applied = await page.evaluate(() => window.__applicationIntent);
       assert.equal(applied.provider.node_id, 'n_existing');
       assert.equal(applied.provider.provider_id, 'deepseek');
       assert.equal(applied.provider.model, 'deepseek-chat'); passed++;
+      await applyAndObserve('deepseek-reasoner');
+      assert.equal(await page.evaluate(() => window.__applicationIntent.provider.node_revision), 'c'.repeat(64)); passed++;
+      if (process.env.OUT_DIR) await page.screenshot({ path: `${process.env.OUT_DIR}/node-provider-refreshed.png`, fullPage: true });
+      await page.evaluate(() => { window.__wrongApplicationReceipt = true; });
+      await chooseProfile('deepseek-chat');
+      const scans = await page.evaluate(() => window.__providerCalls.filter(c => c.arguments.action === 'refresh').length);
+      await page.getByTestId('daemon-provider-apply').click();
+      await page.getByTestId('daemon-provider-apply-confirm').click();
+      await page.waitForFunction(() => document.querySelector('[data-testid="daemon-provider-application-status"]')?.textContent?.includes('尚未确认'));
+      assert.equal(await page.evaluate(() => window.__providerCalls.filter(c => c.arguments.action === 'refresh').length), scans);
+      assert((await page.getByTestId('node-daemon-provider').innerText()).includes('deepseek-reasoner'));
+      assert.equal(await page.getByTestId('daemon-provider-apply').isDisabled(), true); passed++;
       await page.evaluate(() => { window.__nodeBinding = null; window.__anetLayoutSweep.setScreen({ name: 'agents' }); });
       await page.getByTestId('node-daemon-provider').waitFor({ state: 'detached' });
       await page.evaluate(() => window.__anetLayoutSweep.setScreen({ name: 'nodeInfo', alias: 'existing-codex' }));
@@ -125,6 +152,17 @@ try {
     assert.equal(await page.getByTestId('desktop-workspace-sidebar').count(), 0); passed++;
     const panel = page.getByTestId('daemon-providers-real');
     await page.getByTestId('daemon-provider-deepseek').waitFor();
+    if (process.env.CORE_APPLY_REFRESH === '1') {
+      await page.evaluate(() => { window.__providerApplyEnabled = true; });
+      await page.getByTestId('daemon-providers-refresh').click();
+      await page.getByTestId('daemon-provider-deepseek').waitFor();
+      await applyAndObserve('deepseek-chat', true);
+      await applyAndObserve('deepseek-reasoner', true);
+      assert.equal(await page.evaluate(() => window.__applicationIntent.provider.node_revision), 'c'.repeat(64)); passed++;
+      assert.deepEqual(errors, []); passed++;
+      if (process.env.OUT_DIR) await page.screenshot({ path: `${process.env.OUT_DIR}/daemon-provider-refreshed.png`, fullPage: true });
+      await ctx.close(); continue;
+    }
     if (process.env.CORE_COLLECTION_ONLY === '1') {
       await page.evaluate(() => { window.__providerApplyEnabled = true; });
       await page.getByTestId('daemon-providers-refresh').click();
@@ -227,7 +265,7 @@ try {
     await page.getByTestId('daemon-provider-apply').click();
     assert.equal(await page.evaluate(() => window.__providerCalls.filter(c => c.arguments.action === 'apply').length), 0); passed++;
     await page.getByTestId('daemon-provider-apply-confirm').click();
-    await page.waitForFunction(() => document.querySelector('[data-testid="daemon-provider-application-status"]')?.textContent?.includes('已确认所选'));
+    await page.waitForFunction(() => document.querySelector('[data-testid="daemon-codex-row-n_existing"]')?.textContent?.includes('deepseek-chat'));
     const applied = await page.evaluate(() => window.__providerCalls.filter(c => c.arguments.action === 'apply'));
     assert.equal(applied.length, 1); assert.equal(applied[0].arguments.revision, 6);
     assert.deepEqual(applied[0].arguments.provider, { node_id: 'n_existing', node_revision: 'a'.repeat(64), provider_id: 'deepseek', auth_id: 'work', model: 'deepseek-chat', confirm_restart: true }); passed++;
@@ -249,10 +287,12 @@ try {
     assert.deepEqual(errors, []); passed++;
     await ctx.close();
   }
-  console.log(process.env.CORE_COLLECTION_ONLY === '1'
+  console.log(process.env.CORE_APPLY_REFRESH === '1'
+    ? `PASS daemon Provider apply refresh UI ${passed}/${passed} (two confirmed switches, authoritative scan, renewed node revision; synthetic Hub, no real runtime)`
+    : process.env.CORE_COLLECTION_ONLY === '1'
     ? `PASS Provider collection UI ${passed}/${passed} (opt-in source, confirm once, exact intent, saved profile selectable; synthetic Hub, no native credential access)`
     : process.env.CORE_NODE_SWITCH === '1'
-    ? `PASS node Provider switch UI ${passed}/${passed} (node-info target lock, selection, confirmed submit/receipt, unbound refusal, zero page errors; synthetic Hub, no real runtime)`
+    ? `PASS node Provider switch UI ${passed}/${passed} (two switches, refreshed configuration/CAS, wrong receipt no refresh/retry, unbound refusal; synthetic Hub, no real runtime)`
     : process.env.CORE_DISCOVERY_ONLY === '1'
     ? `PASS existing Codex discovery UI ${passed}/${passed} (bound/manual readback, opt-in request, read-only boundary, selection exclusion; synthetic Hub, no real runtime)`
     : `PASS daemon Provider management UI ${passed}/${passed} (inventory, save, enable/disable, application, exact version guidance, unsupported and timeout; synthetic Hub, no real runtime)`);

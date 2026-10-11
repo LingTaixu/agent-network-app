@@ -40,7 +40,8 @@ export default function NodeDaemonProviderSection({ cfg, node, onManageBinding }
       {!value ? <ActivityIndicator color={colors.accent} /> : null}
       {value && value.kind !== 'ready' ? <Text style={{ color: colors.textSecondary }}>Provider 目录未读到（{value.kind}）。请确认 Daemon 在线及版本；已验证版本：CLI {PROVIDER_VERIFIED_VERSIONS.cli} / runtime {PROVIDER_VERIFIED_VERSIONS.runtime} / Hub {PROVIDER_VERIFIED_VERSIONS.hub}。</Text> : null}
       {snapshot && !observed ? <Text style={{ color: colors.textSecondary }}>Daemon 尚未确认该节点的配置，暂不能提交切换。请刷新目录，核实绑定和 Daemon 状态。</Text> : null}
-      {snapshot ? <DaemonProviderSelection cfg={cfg} identity={identity} snapshot={snapshot} nodeId={node.node_id} /> : null}
+      {snapshot ? <DaemonProviderSelection cfg={cfg} identity={identity} snapshot={snapshot} nodeId={node.node_id}
+        onApplied={() => refresh(n => n + 1)} /> : null}
       <Pressable testID="node-provider-refresh" accessibilityRole="button" onPress={() => refresh(n => n + 1)}>
         <Text style={{ color: colors.accent }}>刷新 Provider 与节点配置</Text>
       </Pressable>
