@@ -183,6 +183,10 @@ jobs:
           releaseBody: |-
             Signed and notarized update for macOS (Apple Silicon), and signed update for Windows (x64). Ubuntu 24.04 (amd64) is included only when its installer is listed in this release.
 
+            What's new in 0.2.246:
+            - 节点和 Daemon 的 Provider 页面在确认应用成功后自动刷新当前配置，无需手动刷新才能继续选择。
+            - 连续切换 Provider 或模型时使用最新回读配置；每次切换仍需明确确认，未确认生效的结果不会自动重试。
+
             What's new in 0.2.245:
             - macOS / Windows 的 Daemon 管理可打开独立窗口，调整窗口大小，同时保留主窗口对话；重复打开同一个 Daemon 会回到已有窗口。
             - 独立窗口沿用所选 Hub、网络和 Daemon，Provider、已有 Codex、托管节点与日志在同一处管理；关闭窗口不会停止 Daemon 或切换账号。
