@@ -1,7 +1,10 @@
 // Real exported UI and Tauri IPC fixture in Docker; not a signed macOS/Windows acceptance.
 import assert from 'node:assert/strict';
 import { serveExport, initScript, findChromium, TEST_LOCALE } from '../test-layout-sweep/harness.mjs';
-import { chromium } from 'playwright';
+import { mkdirSync } from 'node:fs';
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const output = process.env.OUT || '/out';
+mkdirSync(output, { recursive: true });
 const web = await serveExport(process.env.WEB_DIR);
 const browser = await chromium.launch({ headless: true, executablePath: findChromium() });
 let passed = 0;
@@ -59,7 +62,7 @@ try {
     const provider = state.calls.filter(c => c.path === '/mcp').map(c => JSON.parse(c.body || '{}').params).filter(p => p?.name === 'daemon_provider_snapshot');
     assert(provider.length > 0 && provider.every(p => p.arguments.network_id === 'net-target')); passed++;
     assert(provider.filter(p => p.arguments.action === 'refresh').every(p => p.arguments.id === 'd-scoped')); passed++;
-    await page.screenshot({ path: `/out/daemon-settings-${theme}.png` });
+    await page.screenshot({ path: `${output}/daemon-settings-${theme}.png` });
     await page.getByTestId('daemon-mgmt-node-settings').click();
     await page.getByTestId('node-section-nav').waitFor();
     await page.waitForFunction(() => window.__calls.some(c => c.path === '/api/status' && c.alias === 'daemon-scoped' && c.network === 'net-target')); passed++;

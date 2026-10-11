@@ -6,7 +6,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY . .
-RUN bun src/daemon-settings-window.test.ts && bun src/window-capabilities-contract.test.ts && bun src/window-chrome.test.ts && bun src/native-title-bar-theme.test.ts && npm run typecheck
+RUN bun src/api-network-scope.test.ts && bun src/drive-registry.test.ts && bun src/node-clone.test.ts && bun src/daemon-settings-window.test.ts && bun src/window-capabilities-contract.test.ts && bun src/window-chrome.test.ts && bun src/native-title-bar-theme.test.ts && npm run typecheck
 ENV CI=1 EXPO_NO_TELEMETRY=1
 RUN npx --no-install expo export -p web --output-dir /web
 

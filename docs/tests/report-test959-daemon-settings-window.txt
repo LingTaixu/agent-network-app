@@ -49,3 +49,19 @@ non-desktop helper returns false; Android still uses the existing in-app screen.
 Docker runs used --rm --init --network none. Browser/server closed in finally.
 Only test image and reviewed screenshots retained. No host/global package change.
 Status: implementation and core Docker verification complete; not released.
+
+2026-10-11T07:35Z incremental reconciliation (not a native package acceptance)
+- Windows CI job114417099428 on d0fcb6cd: 397/399 files passed. Two failures
+  were missing registrations: fetchScopedStatus in the network-scope behavior
+  table and this browser drive in tests/drives.json. Added both, retaining all
+  existing assertions. The drive is a CI stub and honors PLAYWRIGHT_MODULE/OUT.
+- Merged main d9ef6aa685462c90f72f02e0b7bef7b4bceaf036, preserving both the
+  new clone-node controls and the daemon-settings window control/state.
+- Rebuilt the exact merged working sources with the same pinned Dockerfile.
+  api-network-scope, drive-registry, node-clone, window helper/capabilities/chrome,
+  native-title-bar-theme and TypeScript checks PASS. Expo export: 1231 modules.
+  Image config SHA256: 27b456d1e00152a029aa2b844d502f9e8b6f0c5f6eb90634369a8e13da00b349
+- Browser drive against that rebuilt export: 24/24 PASS, exit 0. Docker run
+  --rm --init --network none -e OUT=/tmp/window-evidence; no bind-mounted
+  driver override. Container and temporary screenshots removed by --rm.
+- No production actions; no signed OS package, live OAuth or release claimed.
