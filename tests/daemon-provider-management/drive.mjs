@@ -107,7 +107,7 @@ try {
       assert.equal(await page.evaluate(() => window.__providerCalls.filter(c => c.arguments.action === 'apply').length), writes); passed++;
       await page.getByTestId('daemon-provider-apply-confirm').click();
       await page.waitForFunction(({ model, daemon }) => {
-        const panel = document.querySelector(`[data-testid="${daemon ? 'daemon-codex-row-n_existing' : 'node-daemon-provider'}"]`);
+        const panel = document.querySelector(`[data-testid="${daemon ? 'daemon-codex-row-n_existing' : 'node-provider-current-config'}"]`);
         return panel?.textContent?.includes('anet_' + 'b'.repeat(20)) && panel.textContent.includes(model);
       }, { model, daemon: includeNode });
       await page.getByTestId('daemon-provider-select-providerId').waitFor();
@@ -133,7 +133,7 @@ try {
       await page.getByTestId('daemon-provider-apply-confirm').click();
       await page.waitForFunction(() => document.querySelector('[data-testid="daemon-provider-application-status"]')?.textContent?.includes('尚未确认'));
       assert.equal(await page.evaluate(() => window.__providerCalls.filter(c => c.arguments.action === 'refresh').length), scans);
-      assert((await page.getByTestId('node-daemon-provider').innerText()).includes('deepseek-reasoner'));
+      assert((await page.getByTestId('node-provider-current-config').innerText()).includes('deepseek-reasoner'));
       assert.equal(await page.getByTestId('daemon-provider-apply').isDisabled(), true); passed++;
       await page.evaluate(() => { window.__nodeBinding = null; window.__anetLayoutSweep.setScreen({ name: 'agents' }); });
       await page.getByTestId('node-daemon-provider').waitFor({ state: 'detached' });

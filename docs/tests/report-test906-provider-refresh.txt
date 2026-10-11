@@ -67,3 +67,28 @@ uses the previous published client. This patch cannot reconstruct production
 accounts or database data and does not change their backup requirements.
 Formal client artifacts require merge and a fresh exact-main release build;
 these local browser/build outputs must not enter Release or updater channels.
+
+CI synchronization correction, 04:44 +08
+PR872 head4ed8206d03435c8910862b9f712d4c2e44ed5d2c:
+node UI job114569837313/run38173150927 failed at drive line114 (1 !== 2).
+The second wait searched the entire node panel, so the previous runtime provider
+and the newly selected dropdown model could satisfy it before the async second
+POST. This is not proof that the application completed. Add an explicit current-
+configuration testID and wait on that line only. Preserve exactly-one-write,
+refreshed-CAS and wrong-receipt assertions. No product callback behavior changed.
+Do not call the old head's CI green or count its first local pass as new evidence.
+
+Corrected candidate verification, 04:48 +08
+- Corrected browser image:
+  sha256:431c9ed932d49c7a2c32e9599d78a6e526a005c3865c87ffc5050a53d70b4a0f
+- Rebuilt the actual Expo export (1246 modules); current-configuration-only
+  waits: node UI10/10 PASS; daemon UI8/8 PASS. Each run completed with --rm.
+- Typecheck PASS in the existing locked core image, with only the changed
+  NodeDaemonProviderSection.tsx mounted read-only. Other TypeScript inputs
+  remain identical to the original core run; unchanged suites not rerun.
+- Reviewed both new screenshots. Node screenshot SHA remains
+  a3331cc5407936d7e4ec419496e3212b8f0c1cd66483b8b8048d2fc24788c641;
+  daemon screenshot SHA is now
+  895a8e306fad56a6d941cf2b8978021868ad8447c1672c6c8cf75be068c583f6.
+- This corrected local evidence does not make the superseded CI head green,
+  prove native installation/inference, or constitute a public release.

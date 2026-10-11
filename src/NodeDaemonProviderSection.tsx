@@ -29,7 +29,7 @@ export default function NodeDaemonProviderSection({ cfg, node, onManageBinding }
   const observed = snapshot?.codex_inventory?.rows.find(row => row.node_id === node.node_id);
   return <View testID="node-daemon-provider" style={{ gap: spacing.md, marginTop: spacing.lg }}>
     <Text style={{ color: colors.text, fontWeight: '600' }}>Provider 与模型</Text>
-    <Text style={{ color: colors.textSecondary }}>当前配置：{observed?.configured_provider ?? '未上报 Provider'} · {observed?.configured_model ?? node.model ?? '未上报模型'}</Text>
+    <Text testID="node-provider-current-config" style={{ color: colors.textSecondary }}>当前配置：{observed?.configured_provider ?? '未上报 Provider'} · {observed?.configured_model ?? node.model ?? '未上报模型'}</Text>
     {!daemonId ? <>
       <Text style={{ color: colors.textSecondary }}>此节点尚未绑定 Daemon。先在概览确认所属 Daemon，随后可在此选择 Provider 与模型；不会自动接管或复制登录账号。</Text>
       <Pressable testID="node-provider-manage-binding" accessibilityRole="button" onPress={onManageBinding}>
