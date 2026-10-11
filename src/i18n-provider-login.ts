@@ -5,7 +5,7 @@ registerTranslations({
   'providerLogin.bindHint': ['填写要管理的模型 ID，再绑定到所选账号。配置不代表账号有模型权限，也不会切换节点。', 'Enter model IDs and bind them to a saved account. Configuration does not prove model access or switch a node.'],
   'providerLogin.title': ['OpenAI → codex-tui → ChatGPT 账号', 'OpenAI → codex-tui → ChatGPT accounts'],
   'providerLogin.boundary': ['账号保存在所选 Daemon。网页登录需本人完成；保存账号不会切换或重启节点。离开页面只停止等待，登录约 10 分钟后过期。', 'Accounts stay on the selected daemon. Complete browser sign-in yourself; saving does not switch or restart nodes. Leaving stops observation only; login expires after about 10 minutes.'],
-  'providerLogin.insecure': ['账号操作需要 HTTPS 或本机回环连接。', 'Account operations require HTTPS or a loopback connection.'],
+  'providerLogin.insecure': ['Hub 地址无效，请使用 HTTP 或 HTTPS 地址。', 'Invalid Hub URL. Use an HTTP or HTTPS address.'],
   'providerLogin.waiting': ['等待 Daemon 回读，最多 45 秒…', 'Waiting for daemon readback, up to 45 seconds…'],
   'providerLogin.unconfirmed': ['本次结果未确认，可能仍在执行或当前版本未支持。请检查连接后重试查询，不要重复发起登录。', 'Result unconfirmed: the request may still be running or unsupported by this version. Check connectivity and retry the query; do not start another login.'],
   'providerLogin.forbidden': ['仅当前网络的管理员可管理 Daemon 账号。', 'Only network administrators can manage daemon accounts.'],

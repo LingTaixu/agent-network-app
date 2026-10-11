@@ -11,7 +11,9 @@ test('new config requires key; edit can omit it, models and protocol remain exac
   assert.equal(hubProviderInput({ ...f, key: '' }), null);
   assert(!('key' in hubProviderInput({ ...f, key: '', revision: 1 })!));
   assert.equal(hubProviderInput({ ...f, protocol: 'openai-chat-completions' })?.protocol, 'openai-chat-completions');
-  for (const baseUrl of ['http://api.example.test', 'https://api.example.test?key=fake', 'https://user:pass@api.example.test']) assert.equal(hubProviderInput({ ...f, baseUrl }), null);
+  assert.equal(hubProviderInput({ ...f, baseUrl: 'http://api.example.test/v1' })?.baseUrl, 'http://api.example.test/v1');
+  assert(parseHubProvider({ ...row(), baseUrl: 'http://api.example.test/v1' }));
+  for (const baseUrl of ['ftp://api.example.test', 'https://api.example.test?key=fake', 'https://user:pass@api.example.test', 'http://user:pass@api.example.test']) assert.equal(hubProviderInput({ ...f, baseUrl }), null);
 });
 test('catalog pins network, metadata, revision and adapter capabilities', () => {
   const catalog = { ok: true, network_id: 'net-a', source: 'hub', providers: [row()] };

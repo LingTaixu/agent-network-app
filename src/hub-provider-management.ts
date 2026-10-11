@@ -11,7 +11,7 @@ export function hubProviderInput(form: HubProviderForm) {
     || !Number.isSafeInteger(form.revision) || form.revision < 0 || (!form.revision && !form.key && !form.secretKeyRef)
     || (form.secretKeyRef !== undefined && (!/^[A-Z][A-Z0-9_]{0,63}$/.test(form.secretKeyRef) || !!form.key))
     || (form.key && (form.key.length > 8192 || /[\s\x00-\x1f\x7f]/.test(form.key)))) return null;
-  try { const u = new URL(form.baseUrl.trim()); if (u.protocol !== 'https:' || u.username || u.password || u.search || u.hash) return null; }
+  try { const u = new URL(form.baseUrl.trim()); if (!['https:', 'http:'].includes(u.protocol) || u.username || u.password || u.search || u.hash) return null; }
   catch { return null; }
   return { id: form.id, label: form.label.trim(), enabled: form.enabled, protocol: form.protocol,
     baseUrl: form.baseUrl.trim(), models, ...(form.key ? { key: form.key } : {}), ...(form.secretKeyRef ? { secretKeyRef: form.secretKeyRef } : {}) };

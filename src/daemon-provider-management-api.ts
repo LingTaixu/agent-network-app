@@ -7,8 +7,12 @@ import type { LoginIntent } from './daemon-provider-login-contract';
 
 export function providerWriteTransportAllowed(serverUrl: string): boolean {
   try { const u = new URL(serverUrl); return !u.username && !u.password &&
-    (u.protocol === 'https:' || (u.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname))); }
+    (u.protocol === 'https:' || u.protocol === 'http:'); }
   catch { return false; }
+}
+/** Advisory only: explicitly configured HTTP remains usable. */
+export function providerHttpWarning(value: string): boolean {
+  try { return new URL(value).protocol === 'http:'; } catch { return false; }
 }
 export async function providerFetch(url: string, init: RequestInit, containsKey: boolean): Promise<Response> {
   if (!containsKey) return appFetch(url, init);

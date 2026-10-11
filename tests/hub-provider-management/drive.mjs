@@ -8,6 +8,7 @@ const web = await serveExport(process.env.WEB_DIR);
 const browser = await chromium.launch({ headless: true, executablePath: findChromium() });
 let passed = 0;
 const entryOnly = process.env.ENTRY_ONLY === '1';
+const httpOnly = process.env.HTTP_ONLY === '1';
 const cases = entryOnly
   ? [['light', { width: 390, height: 844 }], ['dark', { width: 390, height: 844 }]]
   : [['light', { width: 1200, height: 900 }], ['dark', { width: 390, height: 844 }]];
@@ -15,7 +16,8 @@ try {
   for (const [theme, viewport] of cases) {
     const ctx = await browser.newContext({ locale: TEST_LOCALE, viewport, colorScheme: theme }); const page = await ctx.newPage();
     const errors = []; page.on('pageerror', e => errors.push(String(e)));
-    await page.addInitScript({ content: `(${initScript.toString().replace('http://mock-hub.invalid', 'http://127.0.0.1:9200')})({theme:${JSON.stringify(theme)}});` });
+    const fixture = httpOnly ? initScript : initScript.toString().replace('http://mock-hub.invalid', 'http://127.0.0.1:9200');
+    await page.addInitScript({ content: `(${fixture})({theme:${JSON.stringify(theme)}});` });
     await page.addInitScript(value => localStorage.setItem('theme_mode_v1', value), theme);
     await page.addInitScript(() => {
       const envelope = value => ({ jsonrpc: '2.0', id: 1, result: { content: [{ type: 'text', text: JSON.stringify(value) }] } });
@@ -40,6 +42,7 @@ try {
         if (name === 'daemon_provider_snapshot' && a.action.startsWith('hub_')) {
           if (a.action === 'hub_read') return envelope({ ok: true, network_id: a.network_id, source: 'hub', secret_reference_supported: true, providers: window.__hubProviders });
           if (a.action === 'hub_put') {
+            window.__lastHubProviderWrite = { hub: url.origin, baseUrl: a.provider.baseUrl };
             window.__hubWrites.push({ network_id: a.network_id, revision: a.revision, id: a.provider.id, secretKeyRef: a.provider.secretKeyRef, hadKey: Object.hasOwn(a.provider, 'key') });
             const { key, secretKeyRef, ...publicConfig } = a.provider;
             const saved = { ...publicConfig, revision: a.revision + 1, updated_at: Date.now(), source: 'hub', credential_present: true,
@@ -96,7 +99,14 @@ try {
     });
     assert.equal(await page.getByTestId('hub-providers-real').evaluate(el => getComputedStyle(el).backgroundColor),
       theme === 'dark' ? 'rgb(17, 17, 19)' : 'rgb(246, 247, 249)'); passed++;
-    for (const [field, value] of Object.entries({ id: 'shared', label: 'Shared fixture', baseUrl: 'https://api.example.test/v1', models: 'model-a, model-b', key: 'TEST-ONLY-hub-key' })) await page.getByTestId(`hub-provider-field-${field}`).fill(value);
+    const baseUrl = httpOnly ? 'http://api.example.test/v1' : 'https://api.example.test/v1';
+    if (httpOnly) {
+      await page.getByTestId('hub-provider-http-advisory').waitFor();
+      assert((await page.getByTestId('hub-provider-http-advisory').innerText()).includes('仍可继续保存和下发')); passed++;
+      assert.equal(await page.evaluate(() => window.__hubWrites.length), 0); passed++;
+    }
+    for (const [field, value] of Object.entries({ id: 'shared', label: 'Shared fixture', baseUrl, models: 'model-a, model-b', key: 'TEST-ONLY-hub-key' })) await page.getByTestId(`hub-provider-field-${field}`).fill(value);
+    if (httpOnly) { await page.getByTestId('hub-provider-endpoint-advisory').waitFor(); passed++; }
     await page.getByTestId('hub-provider-save').click();
     await page.getByTestId('hub-provider-row-shared').waitFor();
     assert.equal(await page.getByTestId('hub-provider-field-key').inputValue(), ''); passed++;
@@ -125,6 +135,13 @@ try {
     assert((await receipt.innerText()).includes('未应用到节点')); passed++;
     assert.equal(await page.evaluate(() => window.__hubBindings.length), 1); passed++;
     assert(!(await page.getByTestId('hub-providers-real').innerText()).includes('TEST-ONLY-hub-key')); passed++;
+    if (httpOnly) {
+      assert.deepEqual(await page.evaluate(() => window.__lastHubProviderWrite), { hub: 'http://mock-hub.invalid', baseUrl }); passed++;
+      assert.deepEqual(errors, []); passed++;
+      mkdirSync('/tmp/hub-provider-screenshots', { recursive: true });
+      await page.screenshot({ path: `/tmp/hub-provider-screenshots/http-${theme}.png`, fullPage: true });
+      await ctx.close(); continue;
+    }
     if (theme === 'light') {
       await page.evaluate(() => { window.__receiptMode = 'wrong'; });
       await page.getByTestId('hub-provider-review-distribution').click(); await page.getByTestId('hub-provider-confirm-distribution').click();
@@ -150,7 +167,8 @@ try {
     await page.screenshot({ path: `/tmp/hub-provider-screenshots/${theme}.png`, fullPage: true });
     await ctx.close();
   }
-  console.log(entryOnly
+  console.log(httpOnly ? `PASS HTTP Provider core: ${passed} assertions, HTTP advisory/save/confirm/bind/readback, synthetic transport`
+    : entryOnly
     ? `PASS phone Provider entry: ${passed}/16 assertions, light + dark, visible/tap/back/zero writes`
     : `PASS Hub Provider real page: ${passed}/46 assertions, desktop/light + phone/dark (entry + palette asserted)`);
 } finally { await browser.close(); web.close(); }
