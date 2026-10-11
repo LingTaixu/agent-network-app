@@ -3,7 +3,14 @@
 // 设置 → 关于 → 更新日志 shows these notes when the mirror / GitHub cannot be reached (src/changelog-source.ts).
 
 export const BUNDLED_RELEASE_BODY: string = [
-  "Signed and notarized stable update for macOS (Apple Silicon) and Windows (x64), plus Ubuntu 24.04 (amd64).",
+  "Signed and notarized update for macOS (Apple Silicon), and signed update for Windows (x64). Ubuntu 24.04 (amd64) is included only when its installer is listed in this release.",
+  "",
+  "What's new in 0.2.238:",
+  "- Daemon Provider 页新增托管 ChatGPT 账号登录与账号列表；登录需由本人在官方页面完成。可明确选择账号和模型，确认后只重启所选 Codex TUI 共存节点并保留会话。",
+  "- 账号登录与 API-key Provider 分开管理；新登录能力需要 Hub 0.9.0-preview.122、CLI 2.3.0-preview.164、runtime 2.5.0-preview.130，旧版本显示明确升级目标。",
+  "- 已有 Codex 状态拆分为清晰卡片；修复设置头像区深色说明文字、输入框和主次按钮配色。",
+  "- 节点详情和 Daemon 节点列表新增「复制节点」入口，可选择是否复制会话；提交后显示待创建状态，旧 Hub 缺少能力时明确提示，不冒称创建成功。",
+  "- 本地核心链路已验证；真实 OAuth 登录及模型权限由账户服务端决定，配置保存不等于远端模型可用。",
   "",
   "What's new in 0.2.237:",
   "- Provider 页面显示所选 Daemon 的实际 runtime 版本；遇到接口缺失或回读异常时，列出明确的 Hub、CLI、runtime 已验证升级目标和处理步骤。",
@@ -1042,6 +1049,8 @@ export const BUNDLED_RELEASE_BODY: string = [
 
 /** Release date (published_at) per version, as far as it was known when this file was generated. */
 export const BUNDLED_RELEASE_DATES: Record<string, string> = {
+  "0.2.237": "2026-10-11T06:10:46Z",
+  "0.2.236": "2026-10-11T05:32:30Z",
   "0.2.232": "2026-10-10T19:25:30Z",
   "0.2.231": "2026-10-10T16:26:18Z",
   "0.2.230": "2026-10-10T14:08:08Z",
