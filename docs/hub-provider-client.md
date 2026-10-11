@@ -19,6 +19,12 @@ request. Only its exact redacted Provider/model receipt counts as distributed.
 The UI records results separately; it does not automatically apply/restart nodes.
 Existing nodes use the separate #906 Daemon Provider application control.
 
+The confirmation card lists the selected Provider's name/id, configuration
+revision, protocol, configured models and exact target Daemon names/ids.
+Returning to selection or changing targets closes the card without a write.
+Only the existing explicit confirm button sends the distribution request.
+This is an on-screen review, not a new binding store or model-access probe.
+
 This first adapter distributes Codex TUI/OpenAI Responses profiles. Saving a
 Chat Completions/Anthropic catalog entry does not make it compatible with Codex.
 Other runtime adapters, always-live inherited bindings and automated rotation are

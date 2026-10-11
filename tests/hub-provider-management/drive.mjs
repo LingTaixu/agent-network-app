@@ -76,6 +76,20 @@ try {
     await page.getByTestId('hub-provider-target-d_sweep_1').click();
     await page.getByTestId('hub-provider-review-distribution').click();
     assert.equal(await page.evaluate(() => window.__hubBindings.length), 0); passed++;
+    const review = page.getByTestId('hub-provider-distribution-review');
+    const reviewText = await review.innerText();
+    assert(reviewText.includes('Shared fixture · shared')); passed++;
+    assert(reviewText.includes('配置版本 1') && reviewText.includes('openai-responses')); passed++;
+    assert(reviewText.includes('model-a, model-b')); passed++;
+    assert(reviewText.includes('目标 Daemon（1 台）') && reviewText.includes('d_sweep_1')); passed++;
+    await page.getByTestId('hub-provider-cancel-distribution').click();
+    assert.equal(await review.count(), 0); passed++;
+    assert.equal(await page.evaluate(() => window.__hubBindings.length), 0); passed++;
+    await page.getByTestId('hub-provider-review-distribution').click();
+    await page.getByTestId('hub-provider-target-d_sweep_1').click();
+    assert.equal(await review.count(), 0); passed++;
+    await page.getByTestId('hub-provider-target-d_sweep_1').click();
+    await page.getByTestId('hub-provider-review-distribution').click();
     await page.getByTestId('hub-provider-confirm-distribution').click();
     const receipt = page.getByTestId('hub-provider-receipt-d_sweep_1'); await receipt.waitFor();
     assert((await receipt.innerText()).includes('未应用到节点')); passed++;
@@ -106,5 +120,5 @@ try {
     await page.screenshot({ path: `/tmp/hub-provider-screenshots/${theme}.png`, fullPage: true });
     await ctx.close();
   }
-  console.log(`PASS Hub Provider real page: ${passed}/25 assertions, desktop/light + phone/dark (palette asserted)`);
+  console.log(`PASS Hub Provider real page: ${passed}/39 assertions, desktop/light + phone/dark (palette asserted)`);
 } finally { await browser.close(); web.close(); }
