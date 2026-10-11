@@ -35,8 +35,8 @@ try {
           const params = JSON.parse(body || '{}').params;
           if (params?.name !== 'daemon_provider_snapshot') return;
           const payload = params.arguments.action === 'refresh'
-            ? { ok: true, request_id: 'dps_fixture', status: 'pending' }
-            : { ok: true, request_id: 'dps_fixture', daemon_node_id: daemon.node_id, status: 'succeeded', observed_at: Date.now(), snapshot: {
+            ? { ok: true, request_id: 'dps_00000000-0000-0000-0000-000000000959', status: 'pending' }
+            : { ok: true, request_id: 'dps_00000000-0000-0000-0000-000000000959', daemon_node_id: daemon.node_id, status: 'succeeded', observed_at: Date.now(), snapshot: {
               daemon_node_id: daemon.node_id, network_id: 'net-target', source: 'daemon', revision: 0, providers: [],
             } };
           return { jsonrpc: '2.0', id: 1, result: { content: [{ type: 'text', text: JSON.stringify(payload) }] } };

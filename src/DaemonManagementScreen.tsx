@@ -24,7 +24,7 @@ import type { ListingKind } from './daemon-overview';
 import {
   fetchHostSupervisors,
   fetchHubNodes,
-  fetchStatus,
+  fetchScopedStatus,
   runNodeLifecycleAction,
   type HostSupervisorDaemon,
   type HostSupervisorListResult,
@@ -147,7 +147,7 @@ export default function DaemonManagementScreen({
     try {
       const nodesRes = await fetchHubNodes(cfg);
       const [statusRes, supervisorsRes] = await Promise.all([
-        fetchStatus(cfg).then(data => ({ ok: true as const, sessions: data.sessions ?? [] })).catch(() => ({ ok: false as const, sessions: [] as Session[] })),
+        fetchScopedStatus(cfg).then(data => ({ ok: true as const, sessions: data.sessions ?? [] })).catch(() => ({ ok: false as const, sessions: [] as Session[] })),
         fetchHostSupervisors(cfg),
       ]);
       setNodes(nodesRes.nodes ?? []);

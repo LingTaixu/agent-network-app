@@ -194,6 +194,10 @@ async function get<T>(cfg: HubConfig, path: string): Promise<T> {
 export const fetchStatus = (cfg: HubConfig) =>
   get<{ sessions: Session[] }>(cfg, '/api/status?light=1');
 
+/** Detached daemon management must not inherit the account's default network. */
+export const fetchScopedStatus = (cfg: HubConfig) =>
+  get<{ sessions: Session[] }>(cfg, `/api/status?light=1${cfg.networkId ? `&network_id=${encodeURIComponent(cfg.networkId)}` : ''}`);
+
 /** Full, authenticated status projection for the one-node details screen.
  * List/chat polling stays on `?light=1`; this opt-in read is where legacy
  * Hubs may omit newer nullable facts such as `os_user` and `session_id`.
