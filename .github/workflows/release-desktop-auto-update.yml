@@ -183,6 +183,11 @@ jobs:
           releaseBody: |-
             Signed and notarized update for macOS (Apple Silicon), and signed update for Windows (x64). Ubuntu 24.04 (amd64) is included only when its installer is listed in this release.
 
+            What's new in 0.2.243:
+            - Hub Provider 可选择已保存在 Hub 密钥库中的 API 密钥名称，无需再次输入或读取密钥明文；也可输入新的 API 密钥。
+            - 配置回读显示引用名称；下发到所选 Daemon 和应用到节点仍需明确确认，不会自动切换已有节点或覆盖共享密钥。
+            - 已存密钥引用需要 Hub 0.9.0-preview.125、CLI 2.3.0-preview.166、runtime 2.5.0-preview.132；旧 Hub 会显示具体升级版本。
+
             What's new in 0.2.242:
             - 首次打开和登录页面也可检查客户端更新，无需先填写 Hub、用户名或密码；使用原有更新提示与安装流程。
             - Hub 令牌页接入真实共享 API 密钥库，支持查看名称、添加和替换；密钥加密保存在 Hub，提交后清空，不回显明文。
