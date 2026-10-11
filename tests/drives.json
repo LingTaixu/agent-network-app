@@ -5,6 +5,26 @@
       "kind": "stub",
       "secs": 15
     },
+    "test1020-hub-tokens/drive.mjs": {
+      "kind": "manual",
+      "why": "Dedicated hub-token-management.yml builds the independent Dockerfile, core then actual exported App with synthetic scoped MCP/native HTTP. Not a live Hub or inference test."
+    },
+    "test1018-prelogin-update/drive.mjs": {
+      "kind": "manual",
+      "why": "Dedicated prelogin-update.yml builds the independent Dockerfile, core then actual empty-account exported App. Not a native installation test."
+    },
+    "test998-reauth/drive.mjs": {
+      "kind": "manual",
+      "why": "Focused tests/test998-reauth/Dockerfile core then actual exported mobile login with synthetic HTTP/localStorage; not a native device or live Hub test."
+    },
+    "provider-create/drive.mjs": {
+      "kind": "manual",
+      "why": "Dedicated provider-create.yml builds the actual export and runs this synthetic wizard in Docker after core checks, not shared stub shards."
+    },
+    "hub-provider-management/drive.mjs": {
+      "kind": "manual",
+      "why": "Dedicated hub-provider-core.yml builds tests/hub-provider-management/Dockerfile and runs actual exported React with synthetic Hub/native HTTP in Docker; not the shared stub shards."
+    },
     "daemon-provider-login/drive.mjs": {
       "kind": "stub",
       "secs": 15

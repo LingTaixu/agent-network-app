@@ -10,7 +10,7 @@ export function providerWriteTransportAllowed(serverUrl: string): boolean {
     (u.protocol === 'https:' || (u.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(u.hostname))); }
   catch { return false; }
 }
-async function providerFetch(url: string, init: RequestInit, containsKey: boolean): Promise<Response> {
+export async function providerFetch(url: string, init: RequestInit, containsKey: boolean): Promise<Response> {
   if (!containsKey) return appFetch(url, init);
   // The pooled desktop client predates per-request redirect policy. Use the
   // bundled native HTTP plugin with zero redirects for this secret-bearing POST.
@@ -36,7 +36,7 @@ export function managedProviderLogin(cfg: HubConfig, daemonId: string, intent: L
   }, signal);
 }
 export function readManagedProviders(cfg: HubConfig, daemonId: string, signal: AbortSignal,
-  write?: { revision: number; provider: unknown }) {
+  write?: { revision: number; provider: unknown; action?: 'put' | 'collect' }) {
   if (write && !providerWriteTransportAllowed(cfg.serverUrl)) return Promise.resolve({ kind: 'error' as const });
   return loadProviderSnapshot({ networkId: cfg.networkId ?? '', daemonId }, async (action, id, requestSignal) => {
     const response = await providerFetch(`${cfg.serverUrl.replace(/\/$/, '')}/mcp`, {
@@ -44,8 +44,9 @@ export function readManagedProviders(cfg: HubConfig, daemonId: string, signal: A
       headers: { Authorization: `Bearer ${cfg.token}`, 'Content-Type': 'application/json',
         Accept: 'application/json, text/event-stream', 'MCP-Protocol-Version': '2025-03-26' },
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: {
-        name: 'daemon_provider_snapshot', arguments: { action: write && action === 'refresh' ? 'put' : action,
-          id, network_id: cfg.networkId, ...(write && action === 'refresh' ? write : {}) },
+        name: 'daemon_provider_snapshot', arguments: { action: write && action === 'refresh' ? write.action ?? 'put' : action,
+          id, network_id: cfg.networkId, ...(action === 'read' ? { include_discovery: true } : {}),
+          ...(write && action === 'refresh' ? { revision: write.revision, provider: write.provider } : {}) },
       } }),
     }, !!write && action === 'refresh');
     return parseProviderRpc(response.status, response.ok ? await response.text() : '');

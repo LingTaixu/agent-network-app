@@ -65,3 +65,28 @@ Status: implementation and core Docker verification complete; not released.
   --rm --init --network none -e OUT=/tmp/window-evidence; no bind-mounted
   driver override. Container and temporary screenshots removed by --rm.
 - No production actions; no signed OS package, live OAuth or release claimed.
+
+2026-10-11T19:27Z current-main reconciliation (03:27 Asia/Shanghai)
+- Original PR840, no replacement implementation ticket. Merged current main
+  6763765909d0c7a50dbd9c595e14d294fd0e99b8 (client 0.2.244).
+  The only merge conflict was tests/drives.json; retained both the scoped-window
+  drive and all incoming Provider, token, reauthentication and update drives.
+- Tested staged source tree: 791c53d5c1e1fb18b9fb102cbfbd0c5f3edf5a2a
+  (before this append-only evidence update). No new dependencies or SDK upgrade.
+- Rebuilt with the checked-in pinned Dockerfile. api-network-scope 77,
+  drive-registry 12, node-clone 29, window helper route/create/reuse/error/mobile,
+  capabilities 49, chrome 44 and title-bar theme 23 checks PASS.
+  TypeScript build typecheck PASS. Expo web export PASS (1246 modules).
+- Image ID: sha256:12833766f10f3f743a3455be2e3b326396ec3cca70c6022ea85a27cf284d9ea7
+- Browser drive: 24/24 PASS, exit 0, --rm --init --network none.
+  Real exported React UI, synthetic Tauri/Hub IPC only; no host credentials.
+  Current light/dark screenshots reviewed: Provider/inventory/collection cards,
+  scoped header and navigation remain visible. Synthetic empty inventory is not
+  evidence of a real account, provider, entitlement or live model execution.
+  light SHA256 bb8449dfd9f91516797c68c86ab0969ad98fe18056dd2e958cdcf1cb07f1f4a5
+  dark SHA256 438474b48d3d2edc83f5bf3329eb8a0b6070b861995ad0311cb1b8f8228375f6
+- Cleanup: browser/server closed and container removed. Test image/screenshots
+  retained in isolated temporary storage. No global install or production write.
+- Scope unchanged: native macOS/Windows window-manager and signed package
+  acceptance remain separate; Android keeps its existing in-app screen.
+  This verifies the original PR on current main, not a published client.

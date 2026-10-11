@@ -6,6 +6,7 @@ import { runProviderApplication } from './daemon-provider-application';
 import { PROVIDER_VERIFIED_VERSIONS } from './daemon-provider-management';
 import { t, setLanguagePreference } from './i18n';
 import './i18n-provider-management';
+import { collectionSourceOptions, collectionSourceForm, providerCollectionWrite, providerCollectionConfirmed } from './daemon-provider-collection';
 let passed = 0;
 const test = async (name: string, run: () => void | Promise<void>) => { await run(); passed++; console.log(`PASS ${name}`); };
 const scope = { networkId: 'net-fixture', daemonId: 'daemon-a' };
@@ -244,5 +245,49 @@ await test('enable/disable writes preserve profiles, omit secrets and carry expe
   assert.equal(providerEnabledWrite(current, 'deepseek', true), null);
   (write.provider as any).runtimes[0].auth[0].models.push('no-aliasing');
   assert.deepEqual(current.providers[0].runtimes[0].auth[0].models, JSON.parse(before).providers[0].runtimes[0].auth[0].models);
+});
+await test('local discovery is readable but never a provider application target', () => {
+  const row = { node_id: 'n_manual', alias: 'manual-codex', status: 'observed', runtime: 'codex-app-server',
+    home_ref: '1234567890abcdef', home_source: 'node-codex-home', config_status: 'read',
+    configured_provider: 'openai', configured_model: 'codex-local', node_configured_model: 'codex-local',
+    provider_ids: ['openai'], auth_kind: 'chatgpt', credential_status: 'present', account_fingerprint: null,
+    verification: 'not_checked', effective_state: 'not_checked', config_revision: null };
+  const value: any = { ...snapshot(), codex_inventory: { observed_at: 1000, scope: 'hub_bound_nodes', rows: [],
+    local_discovery: { status: 'observed', rows: [row] } } };
+  const parsed = parseProviderSnapshot(value, scope)!;
+  assert(parsed); assert.equal(parsed.codex_inventory?.local_discovery?.rows[0].alias, 'manual-codex');
+  assert.equal(providerSelectionOptions(parsed, EMPTY_PROVIDER_SELECTION).nodes.length, 0);
+  assert.equal(providerApplicationWrite(parsed, { nodeId: 'n_manual', providerId: 'deepseek', authId: 'work', model: 'deepseek-chat' }, true), null);
+  value.codex_inventory.local_discovery.rows[0].config_revision = 'a'.repeat(64);
+  assert.equal(parseProviderSnapshot(value, scope), null);
+  value.codex_inventory.local_discovery.rows[0].config_revision = null;
+  value.codex_inventory.local_discovery.rows[0].token = 'TEST-ONLY-secret';
+  assert.equal(parseProviderSnapshot(value, scope), null);
+});
+await test('collection is opt-in, bound/versioned API-key only and never overwrites a managed profile', () => {
+  const before = parseProviderSnapshot(snapshot(), scope)!;
+  before.codex_inventory = { observed_at: 1000, scope: 'hub_bound_nodes', rows: [{ node_id: 'n_a', alias: 'source', status: 'observed',
+    runtime: 'codex-app-server', auth_kind: 'api_key', config_revision: 'a'.repeat(64), configured_provider: 'deepseek', configured_model: 'deepseek-chat' }] };
+  const original = JSON.stringify(before); const form = collectionSourceForm(before, 'n_a');
+  assert.equal(providerCollectionWrite(before, form, false), null);
+  const write = providerCollectionWrite(before, form, true)!;
+  assert.deepEqual(write, { action: 'collect', revision: 2, provider: { node_id: 'n_a', alias: 'source', node_revision: 'a'.repeat(64),
+    provider_id: 'deepseek', auth_id: 'source_n_a', label: 'deepseek' } });
+  assert.equal(providerCollectionWrite(before, { ...form, authId: 'work' }, true), null);
+  assert.equal(JSON.stringify(before), original);
+  for (const change of [{ auth_kind: 'chatgpt' }, { config_revision: null }, { runtime: 'codex-sdk' }, { status: 'unavailable' as const }]) {
+    const other = structuredClone(before); Object.assign(other.codex_inventory!.rows[0], change);
+    assert.equal(collectionSourceOptions(other).length, 0);
+  }
+  const after = structuredClone(before); after.revision++;
+  after.providers[0].label = 'deepseek'; after.providers[0].runtimes[0].auth.push({ ...after.providers[0].runtimes[0].auth[0], id: 'source_n_a' });
+  assert.equal(providerCollectionConfirmed(before, write, after), true);
+  for (const change of ['model', 'scope', 'revision']) {
+    const wrong = structuredClone(after);
+    if (change === 'model') wrong.providers[0].runtimes[0].auth[1].models = ['wrong-model'];
+    if (change === 'scope') wrong.daemon_node_id = 'another';
+    if (change === 'revision') wrong.revision++;
+    assert.equal(providerCollectionConfirmed(before, write, wrong), false);
+  }
 });
 console.log(`${passed}/${passed} passed`);

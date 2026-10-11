@@ -21,7 +21,7 @@ import { reconcileNetworkId, validateNewUser } from './src/user-admin';
 import './src/i18n-users';
 import { LOGIN_FAILURE_COPY, normalizeServerUrl, type LoginFailureKind } from './src/login-flow';
 import { hydrateHubAvatars, initLocalAvatars } from './src/lib/avatars';
-import { hydrateNodeRoles } from './src/daemon-node';
+import { hydrateNodeRoles, isHostSupervisorAlias, nodeRolesVersion, subscribeNodeRoles } from './src/daemon-node';
 import { usePoll } from './src/usePoll'; // R1 avatar 30s hydrate poll (main's App.tsx no longer imports it)
 import ChatScreen, { clearChatConversationCache } from './src/ChatScreen';
 import MessagesScreen from './src/MessagesScreen';
@@ -33,6 +33,8 @@ import HubPendingScreen from './src/HubPendingScreen';
 import HubDaemonEntryScreen from './src/HubDaemonEntryScreen';
 import type { PendingTab } from './src/backend-pending-ui';
 import HubScopeScreen from './src/HubScopeScreen';
+import HubTokenManagementScreen from './src/HubTokenManagementScreen';
+import HubProviderManagementScreen from './src/HubProviderManagementScreen';
 import HubScopeFixtureScreen, { readHubScopeFixture } from './src/HubScopeFixtureScreen';
 import DaemonOverviewFixtureScreen, { readDaemonOverviewFixture } from './src/DaemonOverviewFixtureScreen';
 import CloneNodeFixtureScreen, { readCloneNodeFixture } from './src/CloneNodeFixtureScreen';
@@ -56,7 +58,7 @@ import WeakPasswordBanner from './src/WeakPasswordBanner';
 import { weakPasswordFlags } from './src/weak-password-flag';
 import type { HostSupervisorDaemon } from './src/api';
 import { clearConfig, listHubProfiles, loadConfig, loadHubProfile, loadLocalAvatars, loadOutbox, loadForwardOperations, saveForwardOperations, loadThemeMode, loadUiScalePrefs, markHubProfileRequiresReauth, onDesktopThemeStorageChange, persistProfileNetworkId, onDesktopUiScaleStorageChange, removeHubProfile, saveConfig, saveLocalAvatars, saveOutbox, sessionIdOf, switchHubProfile, type HubProfile } from './src/storage';
-import { clearProfileUnauthorized, onProfileUnauthorized, profileUnauthorizedReason } from './src/profile-auth-state';
+import { clearProfileUnauthorized, isCurrentProfileCredential, onProfileUnauthorized, profileUnauthorizedReason } from './src/profile-auth-state';
 import { initOutbox } from './src/outbox';
 import { createForwardPersistence, initForwardController } from './src/forward-controller';
 import { loadDesktopThemeMode } from './src/desktop-theme-storage';
@@ -78,6 +80,7 @@ import { badgeOffsetCentered } from './src/badge-anchor';
 import DesktopUpdatePrompt from './src/DesktopUpdatePrompt';
 import { desktopPromptMode } from './src/update-prompt-model';
 import AndroidUpdatePrompt from './src/AndroidUpdatePrompt';
+import PreloginUpdateCheck from './src/PreloginUpdateCheck';
 import DesktopMessageListener from './src/DesktopMessageListener';
 import { requestOpenTask } from './src/task-open-request';
 import DesktopNotifier from './src/DesktopNotifier';
@@ -136,9 +139,9 @@ type Screen =
   | { name: 'nodeDetail'; alias: string }  // issue #8 row 4 (V1) — 会话行菜单「节点详情」(以前是直接长按); back returns to agents
   | { name: 'logs' }                        // row 6 — network event stream leaf reached from Server tab; back returns to server
   | { name: 'hubSkills' }                   // 服务器管理侧栏 · Hub SKILLS（演示壳）
-  | { name: 'hubTokens' }                   // 服务器管理侧栏 · Hub 令牌（演示壳）
+  | { name: 'hubTokens' }                   // 服务器管理侧栏 · Hub API 密钥库
   | { name: 'hubEnv' }                      // 服务器管理侧栏 · Hub 环境变量（演示壳，不是 #909 三层）
-  | { name: 'hubProviders' }                // 服务器管理侧栏 · Hub Provider（演示壳，不是 daemon runtime 供应商）
+  | { name: 'hubProviders' }                // 当前网络的真实 Hub Provider 配置及显式 Daemon 下发
   | { name: 'picker' }       // #338 RFC-026 §9.4 host_supervisor picker (modal-style, back returns to agents)
   | { name: 'wizard'; daemon: HostSupervisorDaemon; back?: Screen };  // back: 从某台 daemon 的管理页进来时,返回回到那一页
 
@@ -659,9 +662,12 @@ function AppRoot() {
   useEffect(() => onProfileUnauthorized(profileId => {
     if (!cfg || profileId !== sessionIdOf(cfg)) return;
     void (async () => {
+      let superseded = false;
       try {
-        await markHubProfileRequiresReauth(profileId);
+        superseded = !(await markHubProfileRequiresReauth(profileId, true, cfg.token));
       } finally {
+        // Credential persistence can finish while this old callback is waiting.
+        if (superseded || !isCurrentProfileCredential(profileId, cfg.token)) return;
         requestProfileReauth({ profileId, serverUrl: cfg.serverUrl, username: cfg.username ?? '', displayName: cfg.displayName });
       }
     })();
@@ -1118,8 +1124,11 @@ function AppRoot() {
                       onOpenNodes={() => setScreen({ name: 'agents' })}
                       onCreateNode={() => setScreen({ name: 'picker' })}
                       onOpenScheduled={() => setScreen({ name: 'scheduled' })}
+                      onOpenProviders={() => setScreen({ name: 'hubProviders' })}
                       onBack={phoneSettingsBackTarget(layout, screen.name) ? () => setScreen({ name: 'settings' }) : undefined}
                     />
+                  ) : screen.name === 'hubProviders' || (screen.name === 'serverPending' && screen.tab === 'provider') ? (
+                    <HubProviderManagementScreen cfg={cfg} onBack={() => setScreen({ name: 'server' })} />
                   ) : screen.name === 'serverDaemon' ? (
                     <HubDaemonEntryScreen
                       cfg={cfg}
@@ -1205,6 +1214,7 @@ export function FirstRunScreen({ busy, stage, error, onStartLocal, onRemote }: {
           <Ionicons name="globe-outline" size={17} color={colors.textSecondary} />
           <Text style={entryStyles.secondaryText}>使用已有 Hub 登录</Text>
         </Pressable>
+        <PreloginUpdateCheck />
       </View>
       </ScrollView>
     </View>
@@ -1279,6 +1289,11 @@ function DesktopWorkspace({ cfg, screen, setScreen, onLogout, onLocalDataDeleted
   const toggleMute = (alias: string) => { saveNotifySettings(toggleAgentMuted(loadNotifySettings(), notifyKey, alias)); };
   const serverWorkspace = ['server', 'serverPending', 'serverDaemon', 'serverNodes', 'serverNodeDetail', 'logs', 'picker', 'wizard', 'hubSkills', 'hubTokens', 'hubEnv', 'hubProviders'].includes(screen.name);
   const taskWorkspace = screen.name === 'tasks' || screen.name === 'taskDetail';
+  useSyncExternalStore(subscribeNodeRoles, nodeRolesVersion, nodeRolesVersion);
+  // Daemon management has its own navigation; unrelated conversations should
+  // not take a second sidebar. Keep the rail so returning to Agents is one click.
+  const daemonWorkspace = (screen.name === 'chat' || screen.name === 'nodeInfo')
+    && (screen.daemonMgmt || isHostSupervisorAlias(screen.alias));
   // 设置 → 快捷键(src/shortcuts-model.ts):主窗口的全局键盘快捷键。组合可改,读的是最新存储;
   // 设置页正在录入新组合时不执行。⌘K:列表栏是服务器侧栏时先切回 Agents,再请求聚焦搜索框。
   const [shortcutToast, setShortcutToast] = useState<string | null>(null);
@@ -1290,7 +1305,7 @@ function DesktopWorkspace({ cfg, screen, setScreen, onLogout, onLocalDataDeleted
   const serverWorkspaceRef = useRef(serverWorkspace);
   // 任务页的左栏也不是会话列表(TaskFilterSidebar):⌘K 同样先切回 Agents —— 除非任务页自己的搜索框接走了
   // (列表 / 看板 / 甘特图上 ⌘K 聚焦任务搜索,RequirementBoard 在 window 捕获阶段 preventDefault;派发记录上照旧)。
-  serverWorkspaceRef.current = serverWorkspace || taskWorkspace;
+  serverWorkspaceRef.current = serverWorkspace || taskWorkspace || daemonWorkspace;
   useEffect(() => {
     const doc = (globalThis as any).document;
     if (!doc?.addEventListener) return;
@@ -1376,6 +1391,8 @@ function DesktopWorkspace({ cfg, screen, setScreen, onLogout, onLocalDataDeleted
   : screen.name === 'logs' ? <LogsScreen cfg={cfg} onBack={() => setScreen({ name: 'server' })} onOpenChat={(alias, focusTaskId) => setScreen({ name: 'chat', alias, focusTaskId })} onOpenTask={taskId => setScreen({ name: 'taskDetail', taskId })} desktop />
   : screen.name === 'picker' ? <HostSupervisorPickerScreen cfg={cfg} onBack={() => setScreen({ name: 'server' })} onPicked={d => setScreen({ name: 'wizard', daemon: d })} desktop />
   : screen.name === 'wizard' ? <CreateNodeWizardScreen cfg={cfg} daemon={screen.daemon} onBack={() => setScreen(screen.back ?? { name: 'picker' })} onExit={() => setScreen(screen.back ?? { name: 'serverNodes' })} desktop />
+  : screen.name === 'hubProviders' ? <HubProviderManagementScreen cfg={cfg} />
+  : screen.name === 'hubTokens' ? <HubTokenManagementScreen cfg={cfg} />
   : hubSectionForScreen(screen.name) ? <HubScopeScreen key={screen.name} section={hubSectionForScreen(screen.name)!} />
   : (
     <View style={desktopStyles.empty}>
@@ -1432,7 +1449,7 @@ function DesktopWorkspace({ cfg, screen, setScreen, onLogout, onLocalDataDeleted
         {/* 连接状态(App战线①):不再是顶部全宽横幅,是版本号左边一个小圆点,悬停/点按看全文(ConnectivityIndicator)。 */}
         <ConnectivityIndicator placement="rail" label={`v${APP_VERSION}`} labelStyle={desktopStyles.railVersionText} style={desktopStyles.railVersion} />
       </View>
-      <View style={[desktopStyles.conversations, taskWorkspace && desktopStyles.taskSidebar]}>
+      {!daemonWorkspace ? <View testID="desktop-workspace-sidebar" style={[desktopStyles.conversations, taskWorkspace && desktopStyles.taskSidebar]}>
         {taskWorkspace ? (
           // 任务页的左栏是筛选(全部 / 我负责的 / 按节点 / 派发记录),不是会话列表。
           <TaskFilterSidebar onNavigate={() => { if (screen.name !== 'tasks') setScreen({ name: 'tasks' }); }} />
@@ -1452,7 +1469,7 @@ function DesktopWorkspace({ cfg, screen, setScreen, onLogout, onLocalDataDeleted
         ) : (
           <AgentsScreen cfg={cfg} compact selectedAlias={screen.name === 'chat' || screen.name === 'nodeInfo' ? screen.alias : undefined} pinnedAliases={pinnedAliases} onTogglePin={togglePin} mutedAliases={mutedAliases} onToggleMute={toggleMute} onOpenChatWindow={alias => { void openRememberedChatWindow(alias, cfg.profileId, cfg.username || maskedHubHost(cfg.serverUrl)); }} onOpenChat={(alias, networkId) => setScreen({ name: 'chat', alias, networkId })} onOpenPerson={p => setScreen(dmScreenFor(p))} selectedPerson={screen.name === 'dm' ? screen.alias : undefined} onOpenGroup={g => setScreen(groupScreenFor(g))} selectedGroup={screen.name === 'group' ? screen.alias : undefined} onOpenPicker={() => setScreen({ name: 'picker' })} onOpenNodeDetail={alias => setScreen({ name: 'nodeDetail', alias })} />
         )}
-      </View>
+      </View> : null}
       <View style={desktopStyles.content}>
         {/* #653 弱密码横幅:右侧内容栏顶上;点了打开设置窗口的「修改密码」(没有桌面壳时嵌在主窗口)。 */}
         {screen.name !== 'settings' ? (
@@ -1783,7 +1800,7 @@ export function LoginScreen({ onLogin, initialProfile, onCancelReauth, onCancelA
       ) : null}
       {/* Version on the login page so device screenshots are
           unambiguous about which build is installed (tg 692). */}
-      <View style={loginStyles.securityNote}><Text style={loginStyles.version}>v{APP_VERSION}</Text></View>
+      <PreloginUpdateCheck />
       </View>
       </ScrollView>
     </KeyboardAvoidingView>
