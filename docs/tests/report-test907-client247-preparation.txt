@@ -36,3 +36,25 @@ published client; secure store/Hub data require their documented backups and
 are not recreated by clone. No production restart/account migration claimed.
 Containers removed by --rm; own worktree/image retained for release audit;
 no shared cache prune, no global npm or other worktree edits.
+
+05:39 +08 incremental core regression correction
+After feature merge, PR875 stub shard7 failed in daemon-provider-login/drive.mjs
+line121 waiting30s for the old transient application-status label. Exact
+run38176435361/job114579942347:12/13 drives passed; only this drive failed.
+Artifact11716118690/log confirms that wait, not authentication/network failure.
+Product0.2.246 intentionally refreshes authoritative inventory after applied
+receipt; refreshed observed_at clears previous selection/receipt scope.
+TEST-ONLY correction now returns the receipt's b revision in the refreshed
+inventory and waits for that fresh revision plus cleared receipt/selection.
+All original explicit-confirm, exact request/account/node, save/list/cancel and
+old-version assertions retained; no product, guard or timeout loosening.
+Docker core first: tests/daemon-provider-login/Dockerfile image
+f1c061642b2932491bdfb8698e5453e703b7f0f63ff31b1eaf1626590780e65b,
+5/5 command checks PASS with --rm --network none.
+Then mounted only amended tests/daemon-provider-login read-only over existing
+anet-app:hub907-review-browser exported feature image
+9f7d720ebb065f03de9e58e1d687647abf339597b19f5eaa23b498e03aae5e13;
+node tests/daemon-provider-login/drive.mjs PASS complete core flow.
+Export is exact feature product780e, not a new247/native package; version-only
+candidate does not change product UI. No real OAuth, model or node action.
+Containers removed; downloaded artifact retained for audit, no shared cleanup.

@@ -15,7 +15,7 @@ try {
     const accountId = '00000000-0000-0000-0000-000000000003';
     const applicationId = 'dpa_00000000-0000-0000-0000-000000000004';
     let intent, accounts = [], providers = [], revision = 0;
-    let application;
+    let application, nodeRevision = 'a'.repeat(64);
     window.__applyCalls = [];
     window.__bindCalls = [];
     window.__loginCalls = []; window.__loginConfirmed = false;
@@ -32,13 +32,16 @@ try {
         window.__applyCalls.push(a); application = a;
         return envelope({ ok: true, request_id: applicationId, status: 'pending' });
       }
-      if (a.action === 'read' && a.id === applicationId) return envelope({ ok: true, request_id: applicationId,
+      if (a.action === 'read' && a.id === applicationId) {
+        nodeRevision = 'b'.repeat(64);
+        return envelope({ ok: true, request_id: applicationId,
         daemon_node_id: 'daemon-a', status: 'succeeded', application: {
           status: 'applied', request_id: applicationId, node_id: application.provider.node_id,
           provider_id: application.provider.provider_id, auth_id: application.provider.auth_id, account_id: application.provider.account_id,
           model: application.provider.model, runtime_provider: 'openai', node_revision: 'b'.repeat(64),
           provider_revision: application.revision, verification: 'runtime_confirmed', applied_at: Date.now(),
         } });
+      }
       if (a.action === 'put') {
         window.__bindCalls.push(a);
         if (a.revision !== revision) return envelope({ ok: false, error: 'revision_conflict' });
@@ -64,10 +67,11 @@ try {
         return envelope({ ok: true, request_id: loginId, daemon_node_id: 'daemon-a', status: 'succeeded', login });
       }
       if (a.action === 'refresh') return envelope({ ok: true, request_id: snapshotId, status: 'pending' });
+      window.__snapshotNodeRevision = nodeRevision;
       return envelope({ ok: true, request_id: snapshotId, daemon_node_id: 'daemon-a', status: 'succeeded', observed_at: Date.now(), snapshot: {
         network_id: 'net-sweep', daemon_node_id: 'daemon-a', source: 'daemon', revision, providers,
         codex_inventory: { observed_at: Date.now(), scope: 'hub_bound_nodes', rows: [
-          { node_id: 'node-fixture', alias: 'Fixture', status: 'observed', runtime: 'codex-app-server', config_revision: 'a'.repeat(64),
+          { node_id: 'node-fixture', alias: 'Fixture', status: 'observed', runtime: 'codex-app-server', config_revision: nodeRevision,
             home_ref: '1234567890abcdef', home_source: 'node-codex-home', config_status: 'read',
             configured_provider: 'openai', configured_model: 'model-fixture', node_configured_model: 'model-fixture',
             provider_ids: ['openai'], auth_kind: 'unknown', credential_status: 'unknown', account_fingerprint: null,
@@ -118,7 +122,12 @@ try {
   await page.getByTestId('daemon-provider-apply').click();
   assert.equal(await page.evaluate(() => window.__applyCalls.length), 0);
   await page.getByTestId('daemon-provider-apply-confirm').click();
-  await page.waitForFunction(() => document.querySelector('[data-testid="daemon-provider-application-status"]')?.textContent?.includes('已确认所选'));
+  // Successful application refreshes the authoritative inventory and clears
+  // the previous selection/receipt scope. Do not wait for its transient label.
+  await page.waitForFunction(() => window.__snapshotNodeRevision === 'b'.repeat(64)
+    && !document.querySelector('[data-testid="daemon-provider-application-status"]')
+    && !document.querySelector('[data-testid="daemon-provider-selection-summary"]'));
+  await page.getByTestId('daemon-provider-select-providerId').waitFor();
   const applied = await page.evaluate(() => window.__applyCalls);
   assert.equal(applied.length, 1); assert.equal(applied[0].revision, 1);
   assert.equal(applied[0].provider.account_id, '00000000-0000-0000-0000-000000000003');
