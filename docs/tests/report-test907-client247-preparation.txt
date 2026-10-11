@@ -1,0 +1,38 @@
+#907 — client 0.2.247 release preparation (not publication)
+Observed 2026-10-12 05:37 +08.
+
+Feature PR875 head780e4243d9bfd822b2b05fb088b8247309d1a925 merged normally
+05:35:41 +08 as main b77c05c827011b58fc4a087b5599dc7f3931ee50.
+At merge Hub Provider core and four Ubuntu/Windows push/PR unit checks passed;
+rollup17SUCCESS/1SKIPPED/8IN_PROGRESS, not all optional CI terminal.
+Feature Docker core4/4 + exported real React UI39/39 preserved separately in
+report-test907-distribution-review.txt; no repeat or native-package inference.
+
+Fresh version-only worktree from that exact main; versions0.2.247 in manifests,
+root lock stanzas, native config, display and expectation; Android2247.
+Cargo.lock changes exactly one package: agent-network-desktop.
+No dependency, API, daemon installer, account, credential or production changes.
+Notes describe Provider/model/revision/Daemon review and explicit cancellation.
+
+Generator: Docker --rm --network none; repository mount /app; pinned
+oven/bun:1.3.14@sha256:e10577f0db68676a7024391c6e5cb4b879ebd17188ab750cf10024a6d700e5c4
+bun scripts/changelog-bundle.mjs --no-dates. Existing dates retained; no future
+publication timestamp invented. No host package install or credentials mounted.
+Acceptance:
+sg docker -c 'docker build -f tests/release-metadata/Dockerfile -t anet-app:client247-release-metadata . && docker run --rm --network none anet-app:client247-release-metadata'
+Image config2e07d35f1abd86a24944fc681fb53bf52c392ecc6055632a30cc34b3ec0144d2.
+PASS14/14 version metadata,7/7 bundled notes,9/9 release-notes hygiene.
+This is candidate metadata, not signed/installed/published artifacts.
+
+Next: normal version PR and four unit checks; merge; fresh main ancestry of
+full40 release SHA; tag/draft absence; exact-main desktop Mac/Win (Linux=false)
+and independent Android builds. Existing signing/native retention/size/draft
+and public updater/mirror gates remain unchanged.
+
+Recovery: docs/desktop-release-sop.md and .github/workflows/scripts remain
+authoritative for build/sign/publish/mirror/rollback. No new permanent service,
+port/proxy, secret source, schema or backup format. Rollback software uses prior
+published client; secure store/Hub data require their documented backups and
+are not recreated by clone. No production restart/account migration claimed.
+Containers removed by --rm; own worktree/image retained for release audit;
+no shared cache prune, no global npm or other worktree edits.
