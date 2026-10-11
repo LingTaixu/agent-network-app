@@ -1,0 +1,51 @@
+OBSERVED_AT=2026-10-11T07:28:57Z (15:28:57 Asia/Shanghai)
+Requirement: Hub #959 / sleep2agi/agent-network-app#837
+Product source: affe33d3b0ff79a9a9aeb33d477e15093ba964ff
+Base: ccf611a29ffdd3e0ed2792491af90dca52264cd5
+
+Changes
+- Daemon management header opens a scoped, resizable desktop window.
+- Same profile/network/alias focuses the existing window; different scopes have
+  distinct labels. URL carries routing identifiers only. The window loads the
+  requested saved profile; no fallback to another active account.
+- Reuses Provider, overview, managed nodes, node settings/logs and creation UI.
+- Android/web stay in-app; closing a window does not restart a daemon.
+- Browser core test caught the inherited unscoped status read. Added a light,
+  explicitly network-scoped status reader only for Daemon management.
+
+Docker-only validation
+Dockerfile: tests/daemon-settings-window/Dockerfile (pinned base digests)
+Image: anet-app:daemon-settings-window
+Config SHA256: 0e7c1e94a2aae65fb56c119bae66476039b660c2dea49cb46f8995249e0979da
+- route/create/reuse/error/non-desktop helper checks: PASS
+- window capabilities: 49/49 PASS
+- window chrome: 44/44 PASS
+- native title-bar theme contract: 23/23 PASS
+- TypeScript build typecheck: PASS
+- Expo web export: PASS, 1227 modules
+- Final real React UI + synthetic Tauri/Hub IPC browser drive: 24/24 PASS,
+  exit 0, network disabled, 1120x800, light and dark palettes asserted.
+
+Browser evidence
+Final drive mounted read-only over the image's driver (fixture-only corrections;
+exported product unchanged from affe33d3). Reproduce using the checked-in driver
+with a fresh Docker build, or bind that driver onto the above exact image.
+The first fixture used an invalid request UUID and expected a config fetch that
+only hand-started nodes use; corrected to valid request shape and to assert the
+actual node-details navigation plus alias/network-scoped status read. Palette
+setup now writes the real desktop theme preference and asserts the painted color.
+No product guard or assertion was weakened to accept a wrong network.
+
+Screenshots reviewed (not native window-manager screenshots):
+daemon-settings-light.png SHA256 f09784f476da4fbb4f8a83304f8e21149950ba7ce454d81e08d1ea0c6afd5d2b
+daemon-settings-dark.png SHA256 1c81c3b77dc8d98539e84849448bc881427931ef693631f7344fbb0748ac622f
+Cards separate Provider management, existing Codex inventory and node selection;
+sidebar and header remain visible. No production data or credentials used.
+
+Limits / cleanup
+No signed macOS/Windows package, OS window-manager, real OAuth/model inference,
+production write or Android binary acceptance claimed. Existing pure checks prove
+non-desktop helper returns false; Android still uses the existing in-app screen.
+Docker runs used --rm --init --network none. Browser/server closed in finally.
+Only test image and reviewed screenshots retained. No host/global package change.
+Status: implementation and core Docker verification complete; not released.

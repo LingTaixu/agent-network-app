@@ -12,6 +12,7 @@ try {
     const errors = [];
     page.on('pageerror', error => errors.push(String(error)));
     await page.addInitScript({ content: `(${initScript.toString().replace('http://mock-hub.invalid', 'http://127.0.0.1:9200')})({theme:'${theme}'});` });
+    await page.addInitScript(mode => localStorage.setItem('theme_mode_v1', mode), theme);
     await page.addInitScript(() => {
       window.__calls = []; window.__profileReads = [];
       const original = window.__TAURI_INTERNALS__.invoke;
@@ -27,7 +28,7 @@ try {
       };
       const daemon = { node_id: 'd-scoped', alias: 'daemon-scoped', hostname: 'fixture-host', role: 'host_supervisor', lifecycle_state: 'running', config_snapshot: { role: 'host_supervisor' } };
       window.__routeOverride = (url, body) => {
-        window.__calls.push({ path: url.pathname, network: url.searchParams.get('network_id'), body });
+        window.__calls.push({ path: url.pathname, network: url.searchParams.get('network_id'), alias: url.searchParams.get('alias'), body });
         if (url.pathname === '/api/nodes') return { nodes: [daemon] };
         if (url.pathname === '/api/status') return { sessions: [{ ...daemon, status: 'idle', version: '2.5.0-preview.130', updated_at: new Date().toISOString() }] };
         if (url.pathname === '/api/host-supervisors') return { ok: true, daemons: [{ daemon_node_id: daemon.node_id, alias: daemon.alias, hostname: daemon.hostname, online: true, runtimes_supported: ['codex-app-server'] }] };
@@ -45,6 +46,8 @@ try {
     });
     await page.goto(`${web.url}?daemonSettings=daemon-scoped&profile=p-daemon&network=net-target`);
     await page.getByTestId('daemon-settings-window').waitFor();
+    const background = await page.getByTestId('daemon-settings-window').evaluate(el => getComputedStyle(el).backgroundColor);
+    assert.equal(background, theme === 'dark' ? 'rgb(17, 17, 19)' : 'rgb(246, 247, 249)'); passed++;
     await page.getByText('fixture-host', { exact: false }).first().waitFor(); passed++;
     assert.equal(await page.getByTestId('daemon-mgmt-popout').count(), 0); passed++;
     await page.getByTestId('daemon-section-tabs-provider').click();
@@ -58,13 +61,14 @@ try {
     assert(provider.filter(p => p.arguments.action === 'refresh').every(p => p.arguments.id === 'd-scoped')); passed++;
     await page.screenshot({ path: `/out/daemon-settings-${theme}.png` });
     await page.getByTestId('daemon-mgmt-node-settings').click();
-    await page.waitForFunction(() => window.__calls.some(c => c.path.includes('/config'))); passed++;
+    await page.getByTestId('node-section-nav').waitFor();
+    await page.waitForFunction(() => window.__calls.some(c => c.path === '/api/status' && c.alias === 'daemon-scoped' && c.network === 'net-target')); passed++;
     assert.equal(errors.length, 0, errors.join('\n')); passed++;
     await page.goto(`${web.url}?daemonSettings=daemon-scoped&profile=missing-profile&network=net-target`);
     await page.getByTestId('daemon-window-error').waitFor();
     assert.equal(await page.getByTestId('daemon-providers-real').count(), 0); passed++;
     assert.deepEqual(await page.evaluate(() => window.__profileReads), ['missing-profile']); passed++;
-    await page.goto(web.url);
+    await page.goto(`${web.url}?safeAreaSim=0,0,0,0`);
     await page.waitForFunction(() => !!window.__anetLayoutSweep);
     await page.evaluate(() => window.__anetLayoutSweep.setScreen({ name: 'chat', alias: 'daemon-scoped', daemonMgmt: true }));
     await page.getByTestId('daemon-mgmt-popout').click();
