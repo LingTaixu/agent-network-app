@@ -4,7 +4,7 @@ import type { HubConfig } from './api';
 import { Text, TextInput } from './ui-text';
 import { readHubTokenNames, saveHubToken } from './hub-token-management-api';
 import { hubTokenInput } from './hub-token-management';
-import { providerWriteTransportAllowed } from './daemon-provider-management-api';
+import { providerWriteTransportAllowed, providerHttpWarning } from './daemon-provider-management-api';
 import { buttonStyle, buttonTextStyle } from './elevation';
 import { useTranslation } from './i18n-react';
 import './i18n-hub-token-management';
@@ -55,6 +55,7 @@ function HubTokenPage({ cfg }: { cfg: HubConfig }) {
     </View>
     <Text style={{ color: colors.textSecondary }}>{t('hubToken.boundary')}</Text>
     {!secure && <Text style={{ color: colors.failed }}>{t('providerManagement.insecure')}</Text>}
+    {providerHttpWarning(cfg.serverUrl) && <Text testID="hub-token-http-advisory" style={{ color: colors.textSecondary }}>{t('providerManagement.httpWarning')}</Text>}
     {!!note && <Text testID="hub-token-status" accessibilityLiveRegion="polite" style={{ color: colors.textSecondary }}>{t(note)}</Text>}
     <View style={{ flexDirection: wide ? 'row' : 'column', gap: spacing.lg }}>
       <View style={card}>

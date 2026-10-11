@@ -5,7 +5,7 @@ import { fetchHostSupervisors, type HubConfig, type HostSupervisorDaemon } from 
 import { readHubProviderCatalogInfo, saveHubProviderConfig, bindHubProviderConfig } from './hub-provider-management-api';
 import { readHubTokenNames } from './hub-token-management-api';
 import { EMPTY_HUB_PROVIDER, hubProviderInput, type HubProvider, type HubProviderForm } from './hub-provider-management';
-import { providerWriteTransportAllowed } from './daemon-provider-management-api';
+import { providerWriteTransportAllowed, providerHttpWarning } from './daemon-provider-management-api';
 import { buttonStyle, buttonTextStyle } from './elevation';
 import { useTranslation } from './i18n-react';
 import './i18n-hub-provider-management';
@@ -108,6 +108,7 @@ function HubProviderPage({ cfg, onBack }: { cfg: HubConfig; onBack?: () => void 
       </View>
       <Text style={{ color: colors.textSecondary }}>{t('hubProvider.boundary')}</Text>
       {!secure && <Text style={{ color: colors.failed }}>{t('providerManagement.insecure')}</Text>}
+      {providerHttpWarning(cfg.serverUrl) && <Text testID="hub-provider-http-advisory" style={{ color: colors.textSecondary }}>{t('providerManagement.httpWarning')}</Text>}
       {!!note && <Text testID="hub-provider-status" accessibilityLiveRegion="polite" style={{ color: colors.textSecondary }}>{t(note)}</Text>}
     </View>
     <View style={{ flexDirection: wide ? 'row' : 'column', alignItems: 'stretch', gap: spacing.lg }}>
@@ -187,6 +188,7 @@ function HubProviderPage({ cfg, onBack }: { cfg: HubConfig; onBack?: () => void 
             onChangeText={value => field(name, value)} autoCapitalize="none" autoCorrect={false} secureTextEntry={name === 'key'}
             style={{ color: colors.text, backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md }} />
         </View>)}
+        {providerHttpWarning(form.baseUrl) && <Text testID="hub-provider-endpoint-advisory" style={{ color: colors.textSecondary }}>{t('providerManagement.httpEndpointWarning')}</Text>}
         <Text style={{ color: colors.textSecondary }}>{t('hubProvider.protocol')}</Text>
         <View style={{ gap: spacing.sm }}>
           {(['openai-responses', 'openai-chat-completions', 'anthropic-messages'] as const).map(protocol => <Pressable key={protocol}
