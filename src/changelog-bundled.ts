@@ -5,6 +5,13 @@
 export const BUNDLED_RELEASE_BODY: string = [
   "Signed and notarized update for macOS (Apple Silicon), and signed update for Windows (x64). Ubuntu 24.04 (amd64) is included only when its installer is listed in this release.",
   "",
+  "What's new in 0.2.241:",
+  "- 修复改密码后重新登录又被旧请求踢回登录页，以及账号仍显示需要重新登录的状态竞争；真正失效的新凭据仍会要求验证。",
+  "- Hub Provider 可配置并明确绑定到所选 Daemon；首个应用链路支持 Codex Responses/API-key，不会自动给所有节点复制账号或凭据。",
+  "- 创建 Codex TUI 共存节点可选择 Daemon 已管理的 Provider、认证方式和模型；确认页可返回修改节点名字，保留已选配置。",
+  "- 扫描到的已有 Codex 配置可以明确收录到 Daemon；发现、收录、应用与供应商实际模型权限分别显示。",
+  "- 新 Provider 创建/绑定核心需要 Hub 0.9.0-preview.124、CLI 2.3.0-preview.166、runtime 2.5.0-preview.132；升级客户端不能代替升级管理端软件。",
+  "",
   "What's new in 0.2.240:",
   "- Codex TUI 共存节点详情新增 Daemon Provider、认证方式与模型选择；聊天中的节点信息也可直接操作，不必返回 Daemon 设置。",
   "- 选择仅针对当前节点，确认后才应用；未绑定 Daemon 时显示管理引导，不会自动收编。列表只展示该 Daemon 已管理的配置，扫描到的配置不会自动收录。",
@@ -1061,6 +1068,9 @@ export const BUNDLED_RELEASE_BODY: string = [
 
 /** Release date (published_at) per version, as far as it was known when this file was generated. */
 export const BUNDLED_RELEASE_DATES: Record<string, string> = {
+  "0.2.240": "2026-10-11T11:30:52Z",
+  "0.2.239": "2026-10-11T10:21:39Z",
+  "0.2.238": "2026-10-11T08:59:54Z",
   "0.2.237": "2026-10-11T06:10:46Z",
   "0.2.236": "2026-10-11T05:32:30Z",
   "0.2.232": "2026-10-10T19:25:30Z",
