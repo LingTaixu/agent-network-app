@@ -14,7 +14,9 @@ import type { ProviderApplicationResult } from './daemon-provider-application';
 import { changeProviderSelection, EMPTY_PROVIDER_SELECTION, providerSelectionOptions, resolveProviderSelection, providerApplicationWrite, type ProviderSelection } from './daemon-provider-selection';
 
 /** Single-node confirmed application; configuration counts remain unverified. */
-export default function DaemonProviderSelection({ snapshot, identity, cfg, nodeId }: { snapshot: ProviderSnapshot; identity: string; cfg: HubConfig; nodeId?: string }) {
+export default function DaemonProviderSelection({ snapshot, identity, cfg, nodeId, onApplied }: {
+  snapshot: ProviderSnapshot; identity: string; cfg: HubConfig; nodeId?: string; onApplied?: () => void;
+}) {
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const scope = JSON.stringify([identity, snapshot.revision, snapshot.codex_inventory?.observed_at, nodeId]);
@@ -36,7 +38,12 @@ export default function DaemonProviderSelection({ snapshot, identity, cfg, nodeI
     const ctrl = new AbortController(); controller.current = ctrl;
     setApplication({ scope, result: { kind: 'applying' } }); setConfirmation('');
     const result = await applyManagedProvider(cfg, snapshot.daemon_node_id, write, ctrl.signal);
-    if (!ctrl.signal.aborted) setApplication({ scope, result });
+    if (!ctrl.signal.aborted) {
+      setApplication({ scope, result });
+      // Refresh the authoritative scan/CAS token before another selection.
+      // An unknown outcome must not trigger another write or imply success.
+      if (result.kind === 'applied') onApplied?.();
+    }
     ctrl.abort();
   };
   const field = (name: keyof ProviderSelection, entries: SelectOption[], disabled = false) => <View style={{ gap: spacing.xs }}>

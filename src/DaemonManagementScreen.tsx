@@ -14,6 +14,7 @@ import './i18n-chat';
 import './i18n-daemon';
 import './i18n-backend-pending';
 import { BackendPendingIntegration } from './BackendPendingDemo';
+import ScopedSecretsSection from './ScopedSecretsSection';
 import { PendingPanelCard, PendingSegmentedTabs, type PendingTab } from './backend-pending-ui';
 import RuntimeSupportPane from './RuntimeSupportScreen';
 import type { RuntimeHostContext } from './runtime-support';
@@ -24,7 +25,7 @@ import type { ListingKind } from './daemon-overview';
 import {
   fetchHostSupervisors,
   fetchHubNodes,
-  fetchStatus,
+  fetchScopedStatus,
   runNodeLifecycleAction,
   type HostSupervisorDaemon,
   type HostSupervisorListResult,
@@ -62,6 +63,7 @@ import { PANE_BACK_TEST_ID } from './pane-header';
 import { pointerUi } from './pointer-ui';
 import DialogFrame from './DialogFrame';
 import { SettingsGroup, SettingsRow } from './settings-kit';
+import { canOpenDaemonSettingsWindow, openDaemonSettingsWindow } from './daemon-settings-window';
 import CloneNodeDialog, { CloneNodeButton } from './CloneNodeDialog';
 import { cloneNoticeMessage } from './node-clone';
 import './i18n-node-clone';
@@ -138,6 +140,7 @@ export default function DaemonManagementScreen({
   const [confirmAlias, setConfirmAlias] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [openingWindow, setOpeningWindow] = useState(false);
   const [cloneRowId, setCloneRowId] = useState<string | null>(null);
   const [cloneNotice, setCloneNotice] = useState<{ demo: boolean; pending: boolean; text: string } | null>(null);
   const [section, setSectionRaw] = useState<DaemonSection>(initialSection);
@@ -150,7 +153,7 @@ export default function DaemonManagementScreen({
     try {
       const nodesRes = await fetchHubNodes(cfg);
       const [statusRes, supervisorsRes] = await Promise.all([
-        fetchStatus(cfg).then(data => ({ ok: true as const, sessions: data.sessions ?? [] })).catch(() => ({ ok: false as const, sessions: [] as Session[] })),
+        fetchScopedStatus(cfg).then(data => ({ ok: true as const, sessions: data.sessions ?? [] })).catch(() => ({ ok: false as const, sessions: [] as Session[] })),
         fetchHostSupervisors(cfg),
       ]);
       setNodes(nodesRes.nodes ?? []);
@@ -224,6 +227,18 @@ export default function DaemonManagementScreen({
         <Text style={{ color: colors.text, fontSize: type.title, fontWeight: weight.strong }} numberOfLines={1}>{alias}</Text>
         <Text style={{ color: colors.textSecondary, fontSize: type.small }} numberOfLines={1}>{subtitle}</Text>
       </View>
+      {desktop && cfg.profileId && cfg.networkId && canOpenDaemonSettingsWindow() ? <Pressable
+        testID="daemon-mgmt-popout" accessibilityRole="button" accessibilityLabel={t('daemon.window.open')}
+        disabled={openingWindow} hitSlop={6}
+        onPress={async () => {
+          setOpeningWindow(true);
+          const opened = await openDaemonSettingsWindow({ profileId: cfg.profileId!, networkId: cfg.networkId!, alias });
+          setOpeningWindow(false);
+          if (!opened) setMessage(t('daemon.window.failed'));
+        }}
+        style={{ padding: spacing.sm, opacity: openingWindow ? 0.5 : 1 }}>
+        <Ionicons name="open-outline" size={18} color={colors.accent} />
+      </Pressable> : null}
       <Pressable
         testID="daemon-mgmt-node-settings"
         accessibilityRole="link"
@@ -449,7 +464,7 @@ export default function DaemonManagementScreen({
         value={pendingSection}
         onChange={setSection}
         testID="daemon-section-tabs"
-        t={t}
+        t={key => t(key === 'backendPending.tab.tokens' ? 'scopedSecrets.title' : key)}
       />
     </View>
   );
@@ -513,6 +528,10 @@ export default function DaemonManagementScreen({
       <DaemonProvidersPane cfg={cfg} alias={alias} daemonId={daemon?.node_id}
         daemonVersion={daemonSession?.node_id === daemon?.node_id ? daemonSession?.version : undefined}
         offline={isDaemonOffline(daemonStatus)} />
+    </ScrollView>
+  ) : pendingSection === 'tokens' ? (
+    <ScrollView style={screenStyles.content} contentContainerStyle={screenStyles.contentInner} keyboardShouldPersistTaps="handled">
+      <ScopedSecretsSection cfg={cfg} daemonId={daemon?.node_id ?? (lookup.kind === 'ready' ? lookup.daemon?.daemon_node_id : null)}/>
     </ScrollView>
   ) : pendingSection ? (
     <ScrollView style={screenStyles.content} contentContainerStyle={screenStyles.contentInner} keyboardShouldPersistTaps="handled">

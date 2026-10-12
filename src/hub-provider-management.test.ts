@@ -11,7 +11,9 @@ test('new config requires key; edit can omit it, models and protocol remain exac
   assert.equal(hubProviderInput({ ...f, key: '' }), null);
   assert(!('key' in hubProviderInput({ ...f, key: '', revision: 1 })!));
   assert.equal(hubProviderInput({ ...f, protocol: 'openai-chat-completions' })?.protocol, 'openai-chat-completions');
-  for (const baseUrl of ['http://api.example.test', 'https://api.example.test?key=fake', 'https://user:pass@api.example.test']) assert.equal(hubProviderInput({ ...f, baseUrl }), null);
+  assert.equal(hubProviderInput({ ...f, baseUrl: 'http://api.example.test/v1' })?.baseUrl, 'http://api.example.test/v1');
+  assert(parseHubProvider({ ...row(), baseUrl: 'http://api.example.test/v1' }));
+  for (const baseUrl of ['ftp://api.example.test', 'https://api.example.test?key=fake', 'https://user:pass@api.example.test', 'http://user:pass@api.example.test']) assert.equal(hubProviderInput({ ...f, baseUrl }), null);
 });
 test('catalog pins network, metadata, revision and adapter capabilities', () => {
   const catalog = { ok: true, network_id: 'net-a', source: 'hub', providers: [row()] };
@@ -22,6 +24,15 @@ test('catalog pins network, metadata, revision and adapter capabilities', () => 
   for (const patch of [{ key: 'TEST-ONLY-key' }, { revision: 0 }, { verification: 'verified' }, { id: null }, { label: null }, { compatible_runtimes: ['opencode-v2'] }]) assert.equal(parseHubProvider({ ...row(), ...patch }), null);
   assert(parseHubProvider({ ...row(), protocol: 'anthropic-messages', compatible_runtimes: [] }));
 });
+test('saved-key references accept only names, never a mixed plaintext key', () => {
+  const form = { ...EMPTY_HUB_PROVIDER, id: 'shared', label: 'Shared', baseUrl: 'https://api.example.test/v1', models: 'model-a', secretKeyRef: 'SHARED_API_KEY' };
+  assert.equal(hubProviderInput(form)?.secretKeyRef, 'SHARED_API_KEY');
+  assert(!('key' in hubProviderInput(form)!));
+  assert.equal(hubProviderInput({ ...form, key: 'TEST-ONLY-key' }), null);
+  assert.equal(hubProviderInput({ ...form, secretKeyRef: '../other' }), null);
+  assert.equal(parseHubProvider({ ...row(), secret_key_ref: 'SHARED_API_KEY' })?.secret_key_ref, 'SHARED_API_KEY');
+  assert.equal(parseHubProvider({ ...row(), secret_key_ref: 'lower-case' }), null);
+});
 test('both live routes select the real scoped page, not demo storage', () => {
   const app = readFileSync(new URL('../App.tsx', import.meta.url), 'utf8');
   const pending = readFileSync(new URL('./HubPendingScreen.tsx', import.meta.url), 'utf8');
@@ -31,4 +42,4 @@ test('both live routes select the real scoped page, not demo storage', () => {
   assert(!/demo|localStorage|AsyncStorage|simulateProvider/.test(screen));
   assert(screen.includes('key={JSON.stringify([cfg.serverUrl, cfg.networkId, cfg.token])}'));
 });
-console.log(`${passed}/3 core tests passed`);
+console.log(`${passed}/4 core tests passed`);

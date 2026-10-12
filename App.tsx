@@ -33,6 +33,7 @@ import HubPendingScreen from './src/HubPendingScreen';
 import HubDaemonEntryScreen from './src/HubDaemonEntryScreen';
 import type { PendingTab } from './src/backend-pending-ui';
 import HubScopeScreen from './src/HubScopeScreen';
+import HubTokenManagementScreen from './src/HubTokenManagementScreen';
 import HubProviderManagementScreen from './src/HubProviderManagementScreen';
 import HubScopeFixtureScreen, { readHubScopeFixture } from './src/HubScopeFixtureScreen';
 import DaemonOverviewFixtureScreen, { readDaemonOverviewFixture } from './src/DaemonOverviewFixtureScreen';
@@ -57,7 +58,7 @@ import WeakPasswordBanner from './src/WeakPasswordBanner';
 import { weakPasswordFlags } from './src/weak-password-flag';
 import type { HostSupervisorDaemon } from './src/api';
 import { clearConfig, listHubProfiles, loadConfig, loadHubProfile, loadLocalAvatars, loadOutbox, loadForwardOperations, saveForwardOperations, loadThemeMode, loadUiScalePrefs, markHubProfileRequiresReauth, onDesktopThemeStorageChange, persistProfileNetworkId, onDesktopUiScaleStorageChange, removeHubProfile, saveConfig, saveLocalAvatars, saveOutbox, sessionIdOf, switchHubProfile, type HubProfile } from './src/storage';
-import { clearProfileUnauthorized, onProfileUnauthorized, profileUnauthorizedReason } from './src/profile-auth-state';
+import { clearProfileUnauthorized, isCurrentProfileCredential, onProfileUnauthorized, profileUnauthorizedReason } from './src/profile-auth-state';
 import { initOutbox } from './src/outbox';
 import { createForwardPersistence, initForwardController } from './src/forward-controller';
 import { loadDesktopThemeMode } from './src/desktop-theme-storage';
@@ -79,6 +80,7 @@ import { badgeOffsetCentered } from './src/badge-anchor';
 import DesktopUpdatePrompt from './src/DesktopUpdatePrompt';
 import { desktopPromptMode } from './src/update-prompt-model';
 import AndroidUpdatePrompt from './src/AndroidUpdatePrompt';
+import PreloginUpdateCheck from './src/PreloginUpdateCheck';
 import DesktopMessageListener from './src/DesktopMessageListener';
 import { requestOpenTask } from './src/task-open-request';
 import DesktopNotifier from './src/DesktopNotifier';
@@ -90,6 +92,8 @@ import ImageViewerWindow from './src/ImageViewerWindow';
 import { readImageWindowRoute } from './src/image-window-model';
 import TaskWindow from './src/TaskWindow';
 import { readTaskWindowRoute } from './src/task-window-model';
+import { readDaemonSettingsWindow } from './src/daemon-settings-window';
+import DaemonSettingsWindow from './src/DaemonSettingsWindow';
 import { loadPinnedChats, requestedChatAlias, requestedChatProfileId, requestedWorkspaceProfileId, savePinnedChats } from './src/desktop-chat-menu';
 import { SETTINGS_CATEGORY_EVENT, SETTINGS_SESSION_EVENT, closeSettingsWindow, followThemeInSettingsTitleBar, notifySessionChanged, openSettingsWindow, requestedSettingsCategory, requestedSettingsDetail, requestedSettingsWindow, settingsCategoryFromQuery } from './src/desktop-settings-window';
 import { loadChatPins, saveChatPins, togglePinned } from './src/chat-pins';
@@ -135,7 +139,7 @@ type Screen =
   | { name: 'nodeDetail'; alias: string }  // issue #8 row 4 (V1) — 会话行菜单「节点详情」(以前是直接长按); back returns to agents
   | { name: 'logs' }                        // row 6 — network event stream leaf reached from Server tab; back returns to server
   | { name: 'hubSkills' }                   // 服务器管理侧栏 · Hub SKILLS（演示壳）
-  | { name: 'hubTokens' }                   // 服务器管理侧栏 · Hub 令牌（演示壳）
+  | { name: 'hubTokens' }                   // 服务器管理侧栏 · Hub API 密钥库
   | { name: 'hubEnv' }                      // 服务器管理侧栏 · Hub 环境变量（演示壳，不是 #909 三层）
   | { name: 'hubProviders' }                // 当前网络的真实 Hub Provider 配置及显式 Daemon 下发
   | { name: 'picker' }       // #338 RFC-026 §9.4 host_supervisor picker (modal-style, back returns to agents)
@@ -201,7 +205,7 @@ export default function App() {
   // 0.2.101「跟随系统」:先同步读系统配色并订阅它的变化(幂等,每个窗口的 JS 上下文装一次),
   // 再同步读用户偏好。存储里没有值(新装)= 跟随系统;旧版存的 light/dark 原样沿用。
   // undefined = 不是桌面壳(移动端),偏好等下面异步的 loadThemeMode() 再定。
-  installSystemThemeFollower({ subscribe: !(requestedSettingsWindow() && isWindowsTauriShell()) });
+  installSystemThemeFollower({ subscribe: !((requestedSettingsWindow() || readDaemonSettingsWindow()) && isWindowsTauriShell()) });
   {
     const early = loadDesktopThemeMode();
     if (early !== undefined) setThemePreference(parseStoredThemePreference(early));
@@ -247,6 +251,10 @@ export default function App() {
         <TaskWindow />
       </SafeAreaProvider>
     );
+  }
+
+  if (Platform.OS === 'web' && !!(globalThis as any).__TAURI_INTERNALS__ && readDaemonSettingsWindow()) {
+    return <SafeAreaProvider><DaemonSettingsWindow /></SafeAreaProvider>;
   }
 
   if (readFatalFixture()) {
@@ -654,9 +662,12 @@ function AppRoot() {
   useEffect(() => onProfileUnauthorized(profileId => {
     if (!cfg || profileId !== sessionIdOf(cfg)) return;
     void (async () => {
+      let superseded = false;
       try {
-        await markHubProfileRequiresReauth(profileId);
+        superseded = !(await markHubProfileRequiresReauth(profileId, true, cfg.token));
       } finally {
+        // Credential persistence can finish while this old callback is waiting.
+        if (superseded || !isCurrentProfileCredential(profileId, cfg.token)) return;
         requestProfileReauth({ profileId, serverUrl: cfg.serverUrl, username: cfg.username ?? '', displayName: cfg.displayName });
       }
     })();
@@ -1203,6 +1214,7 @@ export function FirstRunScreen({ busy, stage, error, onStartLocal, onRemote }: {
           <Ionicons name="globe-outline" size={17} color={colors.textSecondary} />
           <Text style={entryStyles.secondaryText}>使用已有 Hub 登录</Text>
         </Pressable>
+        <PreloginUpdateCheck />
       </View>
       </ScrollView>
     </View>
@@ -1380,6 +1392,7 @@ function DesktopWorkspace({ cfg, screen, setScreen, onLogout, onLocalDataDeleted
   : screen.name === 'picker' ? <HostSupervisorPickerScreen cfg={cfg} onBack={() => setScreen({ name: 'server' })} onPicked={d => setScreen({ name: 'wizard', daemon: d })} desktop />
   : screen.name === 'wizard' ? <CreateNodeWizardScreen cfg={cfg} daemon={screen.daemon} onBack={() => setScreen(screen.back ?? { name: 'picker' })} onExit={() => setScreen(screen.back ?? { name: 'serverNodes' })} desktop />
   : screen.name === 'hubProviders' ? <HubProviderManagementScreen cfg={cfg} />
+  : screen.name === 'hubTokens' ? <HubTokenManagementScreen cfg={cfg} />
   : hubSectionForScreen(screen.name) ? <HubScopeScreen key={screen.name} section={hubSectionForScreen(screen.name)!} />
   : (
     <View style={desktopStyles.empty}>
@@ -1787,7 +1800,7 @@ export function LoginScreen({ onLogin, initialProfile, onCancelReauth, onCancelA
       ) : null}
       {/* Version on the login page so device screenshots are
           unambiguous about which build is installed (tg 692). */}
-      <View style={loginStyles.securityNote}><Text style={loginStyles.version}>v{APP_VERSION}</Text></View>
+      <PreloginUpdateCheck />
       </View>
       </ScrollView>
     </KeyboardAvoidingView>

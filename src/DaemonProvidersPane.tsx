@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 import { Text, TextInput } from './ui-text';
 import type { HubConfig } from './api';
-import { readManagedProviders, providerWriteTransportAllowed } from './daemon-provider-management-api';
+import { readManagedProviders, providerWriteTransportAllowed, providerHttpWarning } from './daemon-provider-management-api';
 import { providerConfiguredCounts, providerKeyWrite, providerEnabledWrite, scopedProviderSave, EMPTY_PROVIDER_KEY_FORM, type ProviderKeyForm, type ProviderRead, type ProviderSaveState } from './daemon-provider-management';
 import { PendingCardTitle, PendingPanelCard } from './backend-pending-ui';
 import { buttonStyle, buttonTextStyle } from './elevation';
@@ -68,6 +68,7 @@ export default function DaemonProvidersPane({ cfg, daemonId, alias, daemonVersio
       <PendingCardTitle title={t('providerManagement.title')} />
       <Text style={{ color: colors.textSecondary }}>{alias} · {daemonId ?? '—'}</Text>
       <Text style={{ color: colors.textSecondary }}>{t('providerManagement.boundary')}</Text>
+      {providerHttpWarning(cfg.serverUrl) && <Text testID="daemon-provider-http-advisory" style={{ color: colors.textSecondary }}>{t('providerManagement.httpWarning')}</Text>}
       <Text testID="daemon-provider-current-version" style={{ color: colors.textSecondary }}>
         {t('providerManagement.currentVersion', { runtime: daemonVersion?.trim() || t('providerManagement.versionUnknown') })}
       </Text>
@@ -105,7 +106,8 @@ export default function DaemonProvidersPane({ cfg, daemonId, alias, daemonVersio
       </>}
     </PendingPanelCard> : null}
     {snapshot ? <DaemonProviderCollection snapshot={snapshot} identity={identity} secure={secure} busy={saving} collect={save} /> : null}
-    {snapshot ? <DaemonProviderSelection snapshot={snapshot} identity={identity} cfg={cfg} /> : null}
+    {snapshot ? <DaemonProviderSelection snapshot={snapshot} identity={identity} cfg={cfg}
+      onApplied={() => refresh(n => n + 1)} /> : null}
     {snapshot && daemonId ? <DaemonCodexAccounts key={identity} cfg={cfg} daemonId={daemonId}
       scope={JSON.stringify([cfg.serverUrl, cfg.networkId, cfg.token, daemonId])} snapshot={snapshot} bind={save} binding={saving} /> : null}
     {snapshot ? <PendingPanelCard testID="daemon-provider-key-form">
@@ -119,6 +121,7 @@ export default function DaemonProvidersPane({ cfg, daemonId, alias, daemonVersio
           style={{ color: colors.text, backgroundColor: colors.bg, padding: spacing.sm, borderWidth: 1, borderColor: colors.border, borderRadius: radius.control }} />
       </View>)}
       {!secure ? <Text style={{ color: colors.textSecondary }}>{t('providerManagement.insecure')}</Text> : null}
+      {providerHttpWarning(form.baseUrl) && <Text style={{ color: colors.textSecondary }}>{t('providerManagement.httpEndpointWarning')}</Text>}
       <Pressable testID="daemon-provider-save" accessibilityRole="button" disabled={!write || !secure || saving} onPress={() => { void save(); }}
         style={[buttonStyle('secondary'), (!write || !secure || saving) && { opacity: 0.45 }]}>
         <Text style={buttonTextStyle('secondary')}>{t('providerManagement.save')}</Text>

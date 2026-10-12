@@ -67,7 +67,7 @@ export function parseProviderSnapshot(v: unknown, scope: ProviderScope): Provide
           if (a.credential_present !== true || typeof a.baseUrl !== 'string' || a.baseUrl.length > 2048) return null;
           try {
             const u = new URL(a.baseUrl);
-            if (u.protocol !== 'https:' || u.username || u.password || u.search || u.hash) return null;
+            if (!['https:', 'http:'].includes(u.protocol) || u.username || u.password || u.search || u.hash) return null;
           } catch { return null; }
         } else return null;
       }
